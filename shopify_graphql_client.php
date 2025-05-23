@@ -7,7 +7,7 @@ declare(strict_types=1);
  *
  * This file provides a set of functions to interact with the Shopify GraphQL Admin API,
  * simplifying common operations such as managing products, orders, customers, collections,
- * and inventory.
+ * inventory, and performing bulk operations.
  *
  * PHP Version: 8.4+
  *
@@ -88,7 +88,7 @@ function sendShopifyGraphQLRequest(
     curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10); // 10 seconds connection timeout
-    curl_setopt($ch, CURLOPT_TIMEOUT, 30); // 30 seconds execution timeout
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30); // 30 seconds execution timeout for typical requests
 
     $response = curl_exec($ch);
     $curlErrorNo = curl_errno($ch);
@@ -109,7 +109,7 @@ function sendShopifyGraphQLRequest(
         return [
             'status' => 'error',
             'message' => "Shopify API request failed with HTTP status code {$httpStatusCode}.",
-            'details' => $response // Shopify often returns JSON error details even for non-200 responses
+            'details' => $response
         ];
     }
 
@@ -181,22 +181,11 @@ function formatGqlFieldsForQuery(array $fields): string
  * @param string $apiVersion The API version (e.g., '2024-04').
  * @param string $productId The GID of the product to fetch (e.g., "gid://shopify/Product/1234567890123").
  * @param array<string|array<mixed>> $fields The list of fields to retrieve. Default fields are provided.
- *        Supports simple field names as strings (e.g., 'id', 'title').
- *        Supports pre-formatted nested field strings (e.g., 'variants(first:5) { edges { node { id title price } } }').
- *        Supports simple nested structures via arrays e.g. `['metafields(first:10)' => 'edges { node { id namespace key value } }']`
  * @return array<string, mixed> Associative array with 'status' and 'data' (containing product details) or 'message'/'details' on error.
- *
  * @example
  * // $productId = 'gid://shopify/Product/1234567890123';
  * // $fields = ['id', 'title', 'status', 'totalInventory'];
  * // $result = getProduct($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $productId, $fields);
- * // if ($result['status'] === 'success') {
- * //   // print_r($result['data']['product']);
- * //   // echo "Product Title: " . $result['data']['product']['title'];
- * // } else {
- * //   // echo "Error fetching product: " . $result['message'];
- * //   // if (isset($result['details'])) print_r($result['details']);
- * // }
  */
 function getProduct(
     string $shopifyUrl,
@@ -209,7 +198,6 @@ function getProduct(
     if (empty($fieldsString)) {
         $fieldsString = 'id title handle';
     }
-
     $query = <<<GRAPHQL
     query getProduct(\$id: ID!) {
       product(id: \$id) {
@@ -217,7 +205,6 @@ function getProduct(
       }
     }
     GRAPHQL;
-
     $variables = ['id' => $productId];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
@@ -228,30 +215,11 @@ function getProduct(
  * @param string $shopifyUrl The Shopify store URL.
  * @param string $accessToken The Admin API access token.
  * @param string $apiVersion The API version.
- * @param array<string, mixed> $productInput The input data for creating the product, conforming to Shopify's ProductInput type.
- *        Refer to Shopify ProductInput documentation for all possible fields.
- * @return array<string, mixed> Associative array with 'status' and 'data' (containing created product's id, title, handle, createdAt) or 'message'/'details' on error.
- *
+ * @param array<string, mixed> $productInput The input data for creating the product.
+ * @return array<string, mixed> Associative array with 'status' and 'data' or 'message'/'details' on error.
  * @example
- * // $productInput = [
- * //   'title' => 'Awesome New T-Shirt',
- * //   'bodyHtml' => '<h1>Amazing T-Shirt</h1><p>This is the best t-shirt ever.</p>',
- * //   'vendor' => 'MyBrand',
- * //   'productType' => 'Apparel',
- * //   'tags' => ['new', 't-shirt', 'summer'],
- * //   'status' => 'ACTIVE' // DRAFT, ACTIVE, ARCHIVED
- * // ];
+ * // $productInput = ['title' => 'Awesome New T-Shirt', 'vendor' => 'MyBrand'];
  * // $result = createProduct($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $productInput);
- * // if ($result['status'] === 'success' && isset($result['data']['productCreate']['product'])) {
- * //   // echo "Created Product ID: " . $result['data']['productCreate']['product']['id'];
- * //   // print_r($result['data']['productCreate']['product']);
- * // } elseif (isset($result['data']['productCreate']['userErrors']) && count($result['data']['productCreate']['userErrors']) > 0) {
- * //   // echo "Product creation failed with user errors:";
- * //   // print_r($result['data']['productCreate']['userErrors']);
- * // } else {
- * //   // echo "Error creating product: " . $result['message'];
- * //   // if (isset($result['details'])) print_r($result['details']);
- * // }
  */
 function createProduct(
     string $shopifyUrl,
@@ -275,7 +243,6 @@ function createProduct(
       }
     }
     GRAPHQL;
-
     $variables = ['input' => $productInput];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
@@ -286,29 +253,13 @@ function createProduct(
  * @param string $shopifyUrl The Shopify store URL.
  * @param string $accessToken The Admin API access token.
  * @param string $apiVersion The API version.
- * @param string $productId The GID of the product to update (e.g., "gid://shopify/Product/1234567890123").
+ * @param string $productId The GID of the product to update.
  * @param array<string, mixed> $productInput The input data for updating the product. Must include 'id' => $productId.
- *        Refer to Shopify ProductInput documentation for updatable fields.
- * @return array<string, mixed> Associative array with 'status' and 'data' (containing updated product's id, title, handle, updatedAt) or 'message'/'details' on error.
- *
+ * @return array<string, mixed> Associative array with 'status' and 'data' or 'message'/'details' on error.
  * @example
  * // $productIdToUpdate = 'gid://shopify/Product/1234567890123';
- * // $updateInput = [
- * //   'id' => $productIdToUpdate,
- * //   'title' => 'Even More Awesome T-Shirt - Updated Title',
- * //   'tags' => ['updated', 'sale']
- * // ];
+ * // $updateInput = ['id' => $productIdToUpdate, 'title' => 'Updated T-Shirt Title'];
  * // $result = updateProduct($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $productIdToUpdate, $updateInput);
- * // if ($result['status'] === 'success' && isset($result['data']['productUpdate']['product'])) {
- * //   // echo "Updated Product ID: " . $result['data']['productUpdate']['product']['id'];
- * //   // print_r($result['data']['productUpdate']['product']);
- * // } elseif (isset($result['data']['productUpdate']['userErrors']) && count($result['data']['productUpdate']['userErrors']) > 0) {
- * //   // echo "Product update failed with user errors:";
- * //   // print_r($result['data']['productUpdate']['userErrors']);
- * // } else {
- * //   // echo "Error updating product: " . $result['message'];
- * //   // if (isset($result['details'])) print_r($result['details']);
- * // }
  */
 function updateProduct(
     string $shopifyUrl,
@@ -320,11 +271,8 @@ function updateProduct(
     if (!isset($productInput['id'])) {
         $productInput['id'] = $productId;
     } elseif ($productInput['id'] !== $productId) {
-        // It's crucial that $productInput['id'] matches $productId for clarity and correctness.
-        // Consider throwing an error or logging a warning if they mismatch.
-        // For this implementation, we ensure 'id' is set, prioritizing $productInput['id'] if it exists.
+        // Consider warning/error for mismatch
     }
-
     $query = <<<GRAPHQL
     mutation productUpdate(\$input: ProductInput!) {
       productUpdate(input: \$input) {
@@ -341,7 +289,6 @@ function updateProduct(
       }
     }
     GRAPHQL;
-
     $variables = ['input' => $productInput];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
@@ -352,21 +299,11 @@ function updateProduct(
  * @param string $shopifyUrl The Shopify store URL.
  * @param string $accessToken The Admin API access token.
  * @param string $apiVersion The API version.
- * @param string $productId The GID of the product to delete (e.g., "gid://shopify/Product/1234567890123").
- * @return array<string, mixed> Associative array with 'status' and 'data' (containing deletedProductId) or 'message'/'details' on error.
- *
+ * @param string $productId The GID of the product to delete.
+ * @return array<string, mixed> Associative array with 'status' and 'data' or 'message'/'details' on error.
  * @example
  * // $productIdToDelete = 'gid://shopify/Product/1234567890123';
  * // $result = deleteProduct($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $productIdToDelete);
- * // if ($result['status'] === 'success' && isset($result['data']['productDelete']['deletedProductId'])) {
- * //   // echo "Deleted Product ID: " . $result['data']['productDelete']['deletedProductId'];
- * // } elseif (isset($result['data']['productDelete']['userErrors']) && count($result['data']['productDelete']['userErrors']) > 0) {
- * //   // echo "Product deletion failed with user errors:";
- * //   // print_r($result['data']['productDelete']['userErrors']);
- * // } else {
- * //   // echo "Error deleting product: " . $result['message'];
- * //   // if (isset($result['details'])) print_r($result['details']);
- * // }
  */
 function deleteProduct(
     string $shopifyUrl,
@@ -385,7 +322,6 @@ function deleteProduct(
       }
     }
     GRAPHQL;
-
     $variables = ['input' => ['id' => $productId]];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
@@ -396,20 +332,12 @@ function deleteProduct(
  * @param string $shopifyUrl The Shopify store URL.
  * @param string $accessToken The Admin API access token.
  * @param string $apiVersion The API version.
- * @param string $orderId The GID of the order to fetch (e.g., "gid://shopify/Order/1234567890123").
- * @param array<string|array<mixed>> $fields The list of fields to retrieve. Default fields are provided.
- * @return array<string, mixed> Associative array with 'status' and 'data' (containing order details) or 'message'/'details' on error.
- *
+ * @param string $orderId The GID of the order to fetch.
+ * @param array<string|array<mixed>> $fields The list of fields to retrieve.
+ * @return array<string, mixed> Associative array with 'status' and 'data' or 'message'/'details' on error.
  * @example
  * // $orderId = 'gid://shopify/Order/1234567890123';
- * // $orderFields = ['id', 'name', 'email', 'totalPriceSet { shopMoney { amount currencyCode } }'];
- * // $result = getOrder($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $orderId, $orderFields);
- * // if ($result['status'] === 'success') {
- * //   // print_r($result['data']['order']);
- * //   // echo "Order Name: " . $result['data']['order']['name'];
- * // } else {
- * //   // echo "Error fetching order: " . $result['message'];
- * // }
+ * // $result = getOrder($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $orderId);
  */
 function getOrder(
     string $shopifyUrl,
@@ -427,7 +355,6 @@ function getOrder(
     if (empty($fieldsString)) {
         $fieldsString = 'id name email';
     }
-
     $query = <<<GRAPHQL
     query getOrder(\$id: ID!) {
       order(id: \$id) {
@@ -435,39 +362,23 @@ function getOrder(
       }
     }
     GRAPHQL;
-
     $variables = ['id' => $orderId];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
 
 /**
- * Updates an existing order (e.g., adding tags, notes, or metafields).
+ * Updates an existing order.
  *
  * @param string $shopifyUrl The Shopify store URL.
  * @param string $accessToken The Admin API access token.
  * @param string $apiVersion The API version.
- * @param string $orderId The GID of the order to update (e.g., "gid://shopify/Order/1234567890123").
- * @param array<string, mixed> $orderInput The input data for updating the order, conforming to Shopify's OrderInput type.
- *        Must include 'id' => $orderId.
- * @return array<string, mixed> Associative array with 'status' and 'data' (containing updated order details) or 'message'/'details' on error.
- *
+ * @param string $orderId The GID of the order to update.
+ * @param array<string, mixed> $orderInput The input data for updating the order. Must include 'id' => $orderId.
+ * @return array<string, mixed> Associative array with 'status' and 'data' or 'message'/'details' on error.
  * @example
  * // $orderIdToUpdate = 'gid://shopify/Order/1234567890123';
- * // $orderUpdateInput = [
- * //   'id' => $orderIdToUpdate,
- * //   'tags' => ['VIP Customer', 'Follow Up'],
- * //   'note' => 'Customer requested a follow-up call regarding their order.'
- * // ];
+ * // $orderUpdateInput = ['id' => $orderIdToUpdate, 'tags' => ['VIP']];
  * // $result = updateOrder($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $orderIdToUpdate, $orderUpdateInput);
- * // if ($result['status'] === 'success' && isset($result['data']['orderUpdate']['order'])) {
- * //   // print_r($result['data']['orderUpdate']['order']);
- * //   // echo "Order " . $result['data']['orderUpdate']['order']['id'] . " updated successfully.";
- * // } elseif (isset($result['data']['orderUpdate']['userErrors']) && count($result['data']['orderUpdate']['userErrors']) > 0) {
- * //   // echo "Order update failed with user errors:";
- * //   // print_r($result['data']['orderUpdate']['userErrors']);
- * // } else {
- * //   // echo "Error updating order: " . $result['message'];
- * // }
  */
 function updateOrder(
     string $shopifyUrl,
@@ -481,7 +392,6 @@ function updateOrder(
     } elseif ($orderInput['id'] !== $orderId) {
         // Ensure ID consistency
     }
-
     $query = <<<GRAPHQL
     mutation orderUpdate(\$input: OrderInput!) {
       orderUpdate(input: \$input) {
@@ -500,7 +410,6 @@ function updateOrder(
       }
     }
     GRAPHQL;
-
     $variables = ['input' => $orderInput];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
@@ -511,29 +420,15 @@ function updateOrder(
  * @param string $shopifyUrl The Shopify store URL.
  * @param string $accessToken The Admin API access token.
  * @param string $apiVersion The API version.
- * @param string $orderId The GID of the order to cancel (e.g., "gid://shopify/Order/1234567890123").
- * @param ?string $reason Optional. The reason for cancellation (e.g., CUSTOMER_REQUEST, FRAUD, INVENTORY, OTHER).
- * @param bool $restock Optional. Whether to restock items from the order. Defaults to false.
+ * @param string $orderId The GID of the order to cancel.
+ * @param ?string $reason Optional. The reason for cancellation.
+ * @param bool $restock Optional. Whether to restock items. Defaults to false.
  * @param ?string $staffNote Optional. A note for the cancellation.
- * @param ?bool $notifyCustomer Optional. Whether to send a notification to the customer about the cancellation.
- * @return array<string, mixed> Associative array with 'status' and 'data' (containing cancelled order details) or 'message'/'details' on error.
- *
+ * @param ?bool $notifyCustomer Optional. Whether to send a notification to the customer.
+ * @return array<string, mixed> Associative array with 'status' and 'data' or 'message'/'details' on error.
  * @example
  * // $orderIdToCancel = 'gid://shopify/Order/1234567890123';
- * // $reason = 'CUSTOMER_REQUEST';
- * // $restockItems = true;
- * // $note = 'Customer changed their mind.';
- * // $notify = true;
- * // $result = cancelOrder($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $orderIdToCancel, $reason, $restockItems, $note, $notify);
- * // if ($result['status'] === 'success' && isset($result['data']['orderCancel']['order'])) {
- * //   // print_r($result['data']['orderCancel']['order']);
- * //   // echo "Order " . $result['data']['orderCancel']['order']['id'] . " cancelled successfully.";
- * // } elseif (isset($result['data']['orderCancel']['userErrors']) && count($result['data']['orderCancel']['userErrors']) > 0) {
- * //   // echo "Order cancellation failed with user errors:";
- * //   // print_r($result['data']['orderCancel']['userErrors']);
- * // } else {
- * //   // echo "Error cancelling order: " . $result['message'];
- * // }
+ * // $result = cancelOrder($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $orderIdToCancel, 'CUSTOMER_REQUEST');
  */
 function cancelOrder(
     string $shopifyUrl,
@@ -546,18 +441,10 @@ function cancelOrder(
     ?bool $notifyCustomer = null
 ): array {
     $input = ['id' => $orderId];
-
-    if ($reason !== null) {
-        $input['reason'] = $reason;
-    }
+    if ($reason !== null) $input['reason'] = $reason;
     $input['restock'] = $restock;
-    if ($staffNote !== null) {
-        $input['staffNote'] = $staffNote;
-    }
-    if ($notifyCustomer !== null) {
-        $input['notifyCustomer'] = $notifyCustomer;
-    }
-
+    if ($staffNote !== null) $input['staffNote'] = $staffNote;
+    if ($notifyCustomer !== null) $input['notifyCustomer'] = $notifyCustomer;
     $query = <<<GRAPHQL
     mutation orderCancel(\$input: OrderCancelInput!) {
       orderCancel(input: \$input) {
@@ -575,7 +462,6 @@ function cancelOrder(
       }
     }
     GRAPHQL;
-
     $variables = ['input' => $input];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
@@ -586,20 +472,12 @@ function cancelOrder(
  * @param string $shopifyUrl The Shopify store URL.
  * @param string $accessToken The Admin API access token.
  * @param string $apiVersion The API version.
- * @param string $customerId The GID of the customer (e.g., "gid://shopify/Customer/1234567890123").
- * @param array<string|array<mixed>> $fields The list of fields to retrieve. Default fields are provided.
- * @return array<string, mixed> Associative array with 'status' and 'data' (containing customer details) or 'message'/'details' on error.
- *
+ * @param string $customerId The GID of the customer.
+ * @param array<string|array<mixed>> $fields The list of fields to retrieve.
+ * @return array<string, mixed> Associative array with 'status' and 'data' or 'message'/'details' on error.
  * @example
  * // $customerId = 'gid://shopify/Customer/1234567890123';
- * // $customerFields = ['id', 'firstName', 'lastName', 'email', 'phone', 'numberOfOrders'];
- * // $result = getCustomer($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $customerId, $customerFields);
- * // if ($result['status'] === 'success') {
- * //   // print_r($result['data']['customer']);
- * //   // echo "Customer Name: " . $result['data']['customer']['firstName'] . " " . $result['data']['customer']['lastName'];
- * // } else {
- * //   // echo "Error fetching customer: " . $result['message'];
- * // }
+ * // $result = getCustomer($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $customerId);
  */
 function getCustomer(
     string $shopifyUrl,
@@ -617,7 +495,6 @@ function getCustomer(
     if (empty($fieldsString)) {
         $fieldsString = 'id firstName lastName email';
     }
-
     $query = <<<GRAPHQL
     query getCustomer(\$id: ID!) {
       customer(id: \$id) {
@@ -625,7 +502,6 @@ function getCustomer(
       }
     }
     GRAPHQL;
-
     $variables = ['id' => $customerId];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
@@ -636,28 +512,11 @@ function getCustomer(
  * @param string $shopifyUrl The Shopify store URL.
  * @param string $accessToken The Admin API access token.
  * @param string $apiVersion The API version.
- * @param array<string, mixed> $customerInput The input data for creating the customer, conforming to Shopify's CustomerInput type.
- * @return array<string, mixed> Associative array with 'status' and 'data' (containing created customer's details) or 'message'/'details' on error.
- *
+ * @param array<string, mixed> $customerInput The input data for creating the customer.
+ * @return array<string, mixed> Associative array with 'status' and 'data' or 'message'/'details' on error.
  * @example
- * // $customerData = [
- * //   'firstName' => 'Jane',
- * //   'lastName' => 'Doe',
- * //   'email' => 'jane.doe@example.com',
- * //   'phone' => '+1234567890',
- * //   'acceptsMarketing' => true,
- * //   'tags' => ['new_customer', 'newsletter_signup']
- * // ];
+ * // $customerData = ['firstName' => 'Jane', 'lastName' => 'Doe', 'email' => 'jane.doe@example.com'];
  * // $result = createCustomer($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $customerData);
- * // if ($result['status'] === 'success' && isset($result['data']['customerCreate']['customer'])) {
- * //   // echo "Created Customer ID: " . $result['data']['customerCreate']['customer']['id'];
- * //   // print_r($result['data']['customerCreate']['customer']);
- * // } elseif (isset($result['data']['customerCreate']['userErrors']) && count($result['data']['customerCreate']['userErrors']) > 0) {
- * //   // echo "Customer creation failed with user errors:";
- * //   // print_r($result['data']['customerCreate']['userErrors']);
- * // } else {
- * //   // echo "Error creating customer: " . $result['message'];
- * // }
  */
 function createCustomer(
     string $shopifyUrl,
@@ -686,7 +545,6 @@ function createCustomer(
       }
     }
     GRAPHQL;
-
     $variables = ['input' => $customerInput];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
@@ -698,27 +556,12 @@ function createCustomer(
  * @param string $accessToken The Admin API access token.
  * @param string $apiVersion The API version.
  * @param string $customerId The GID of the customer to update.
- * @param array<string, mixed> $customerInput The input data for updating the customer. Must include 'id' => $customerId.
- * @return array<string, mixed> Associative array with 'status' and 'data' (containing updated customer's details) or 'message'/'details' on error.
- *
+ * @param array<string, mixed> $customerInput The input data. Must include 'id' => $customerId.
+ * @return array<string, mixed> Associative array with 'status' and 'data' or 'message'/'details' on error.
  * @example
  * // $customerIdToUpdate = 'gid://shopify/Customer/1234567890123';
- * // $updateData = [
- * //   'id' => $customerIdToUpdate,
- * //   'firstName' => 'Janet',
- * //   'email' => 'janet.doe.updated@example.com',
- * //   'tags' => ['vip_customer', 'updated_profile']
- * // ];
+ * // $updateData = ['id' => $customerIdToUpdate, 'firstName' => 'Janet'];
  * // $result = updateCustomer($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $customerIdToUpdate, $updateData);
- * // if ($result['status'] === 'success' && isset($result['data']['customerUpdate']['customer'])) {
- * //   // echo "Updated Customer ID: " . $result['data']['customerUpdate']['customer']['id'];
- * //   // print_r($result['data']['customerUpdate']['customer']);
- * // } elseif (isset($result['data']['customerUpdate']['userErrors']) && count($result['data']['customerUpdate']['userErrors']) > 0) {
- * //   // echo "Customer update failed with user errors:";
- * //   // print_r($result['data']['customerUpdate']['userErrors']);
- * // } else {
- * //   // echo "Error updating customer: " . $result['message'];
- * // }
  */
 function updateCustomer(
     string $shopifyUrl,
@@ -732,7 +575,6 @@ function updateCustomer(
     } elseif ($customerInput['id'] !== $customerId) {
         // ID consistency check
     }
-
     $query = <<<GRAPHQL
     mutation customerUpdate(\$input: CustomerInput!) {
       customerUpdate(input: \$input) {
@@ -754,7 +596,6 @@ function updateCustomer(
       }
     }
     GRAPHQL;
-
     $variables = ['input' => $customerInput];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
@@ -766,19 +607,10 @@ function updateCustomer(
  * @param string $accessToken The Admin API access token.
  * @param string $apiVersion The API version.
  * @param string $customerId The GID of the customer to delete.
- * @return array<string, mixed> Associative array with 'status' and 'data' (containing deletedCustomerId) or 'message'/'details' on error.
- *
+ * @return array<string, mixed> Associative array with 'status' and 'data' or 'message'/'details' on error.
  * @example
  * // $customerIdToDelete = 'gid://shopify/Customer/1234567890123';
  * // $result = deleteCustomer($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $customerIdToDelete);
- * // if ($result['status'] === 'success' && isset($result['data']['customerDelete']['deletedCustomerId'])) {
- * //   // echo "Deleted Customer ID: " . $result['data']['customerDelete']['deletedCustomerId'];
- * // } elseif (isset($result['data']['customerDelete']['userErrors']) && count($result['data']['customerDelete']['userErrors']) > 0) {
- * //   // echo "Customer deletion failed with user errors:";
- * //   // print_r($result['data']['customerDelete']['userErrors']);
- * // } else {
- * //   // echo "Error deleting customer: " . $result['message'];
- * // }
  */
 function deleteCustomer(
     string $shopifyUrl,
@@ -807,27 +639,13 @@ function deleteCustomer(
  * @param string $shopifyUrl The Shopify store URL.
  * @param string $accessToken The Admin API access token.
  * @param string $apiVersion The API version.
- * @param string $inventoryItemId The GID of the InventoryItem (e.g., "gid://shopify/InventoryItem/1234567890123").
- * @param array<string> $locationIds Optional. Array of Location GIDs. If provided, results should ideally be filtered by these locations.
- *        However, direct API filtering for multiple locations in a single inventoryLevels query is not standard.
- *        This parameter is noted for client-side filtering or future enhancement.
- *        The current implementation fetches all levels for the item (up to 25 by default).
+ * @param string $inventoryItemId The GID of the InventoryItem.
+ * @param array<string> $locationIds Optional. Not used for API-side filtering in this version.
  * @param array<string|array<mixed>> $fields The list of fields to retrieve for each InventoryLevel node.
  * @return array<string, mixed> Associative array with 'status' and 'data' or 'message'/'details'.
- *         The data path for levels is typically `['inventoryItem']['inventoryLevels']['edges']`.
- *
  * @example
  * // $inventoryItemId = 'gid://shopify/InventoryItem/1234567890123';
- * // $invFields = ['id', 'available', 'location { id name }'];
- * // $result = getInventoryLevels($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $inventoryItemId, [], $invFields);
- * // if ($result['status'] === 'success' && isset($result['data']['inventoryItem']['inventoryLevels']['edges'])) {
- * //   // echo "Inventory Item SKU: " . $result['data']['inventoryItem']['sku'] . "\n";
- * //   // foreach ($result['data']['inventoryItem']['inventoryLevels']['edges'] as $edge) {
- * //   //   // print_r($edge['node']);
- * //   // }
- * // } else {
- * //   // echo "Error fetching inventory levels: " . $result['message'];
- * // }
+ * // $result = getInventoryLevels($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $inventoryItemId);
  */
 function getInventoryLevels(
     string $shopifyUrl,
@@ -841,7 +659,6 @@ function getInventoryLevels(
     if (empty($inventoryLevelsFieldsString)) {
         $inventoryLevelsFieldsString = 'id available location { id name } updatedAt';
     }
-
     $query = <<<GRAPHQL
     query getInventoryLevels(\$inventoryItemId: ID!) {
       inventoryItem(id: \$inventoryItemId) {
@@ -862,7 +679,6 @@ function getInventoryLevels(
       }
     }
     GRAPHQL;
-
     $variables = ['inventoryItemId' => $inventoryItemId];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
@@ -873,23 +689,13 @@ function getInventoryLevels(
  * @param string $shopifyUrl The Shopify store URL.
  * @param string $accessToken The Admin API access token.
  * @param string $apiVersion The API version.
- * @param string $inventoryLevelId The GID of the InventoryLevel to adjust (e.g., "gid://shopify/InventoryLevel/12345?inventory_item_id=67890").
- * @param int $availableDelta The change in quantity. Positive to increase, negative to decrease.
- * @return array<string, mixed> Associative array with 'status' and 'data' (containing adjusted inventoryLevel details) or 'message'/'details' on error.
- *
+ * @param string $inventoryLevelId The GID of the InventoryLevel to adjust.
+ * @param int $availableDelta The change in quantity.
+ * @return array<string, mixed> Associative array with 'status' and 'data' or 'message'/'details' on error.
  * @example
- * // $inventoryLevelId = 'gid://shopify/InventoryLevel/12345?inventory_item_id=67890'; // Replace with actual GID
- * // $delta = 5; // Increase quantity by 5
+ * // $inventoryLevelId = 'gid://shopify/InventoryLevel/12345?inventory_item_id=67890';
+ * // $delta = 5;
  * // $result = adjustInventoryLevel($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $inventoryLevelId, $delta);
- * // if ($result['status'] === 'success' && isset($result['data']['inventoryAdjustQuantity']['inventoryLevel'])) {
- * //   // echo "Inventory adjusted successfully. New available quantity: " . $result['data']['inventoryAdjustQuantity']['inventoryLevel']['available'];
- * //   // print_r($result['data']['inventoryAdjustQuantity']['inventoryLevel']);
- * // } elseif (isset($result['data']['inventoryAdjustQuantity']['userErrors']) && count($result['data']['inventoryAdjustQuantity']['userErrors']) > 0) {
- * //   // echo "Inventory adjustment failed with user errors:";
- * //   // print_r($result['data']['inventoryAdjustQuantity']['userErrors']);
- * // } else {
- * //   // echo "Error adjusting inventory: " . $result['message'];
- * // }
  */
 function adjustInventoryLevel(
     string $shopifyUrl,
@@ -902,7 +708,6 @@ function adjustInventoryLevel(
         'inventoryLevelId' => $inventoryLevelId,
         'availableDelta' => $availableDelta,
     ];
-
     $query = <<<GRAPHQL
     mutation inventoryAdjustQuantity(\$input: InventoryAdjustQuantityInput!) {
       inventoryAdjustQuantity(input: \$input) {
@@ -920,7 +725,6 @@ function adjustInventoryLevel(
       }
     }
     GRAPHQL;
-
     $variables = ['input' => $input];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
@@ -931,20 +735,12 @@ function adjustInventoryLevel(
  * @param string $shopifyUrl The Shopify store URL.
  * @param string $accessToken The Admin API access token.
  * @param string $apiVersion The API version.
- * @param string $collectionId The GID of the collection (e.g., "gid://shopify/Collection/1234567890123").
- * @param array<string|array<mixed>> $fields The list of fields to retrieve. Default fields are provided.
- * @return array<string, mixed> Associative array with 'status' and 'data' (containing collection details) or 'message'/'details' on error.
- *
+ * @param string $collectionId The GID of the collection.
+ * @param array<string|array<mixed>> $fields The list of fields to retrieve.
+ * @return array<string, mixed> Associative array with 'status' and 'data' or 'message'/'details' on error.
  * @example
  * // $collectionId = 'gid://shopify/Collection/1234567890123';
- * // $collectionFields = ['id', 'title', 'handle', 'productsCount'];
- * // $result = getCollection($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $collectionId, $collectionFields);
- * // if ($result['status'] === 'success') {
- * //   // print_r($result['data']['collection']);
- * //   // echo "Collection Title: " . $result['data']['collection']['title'];
- * // } else {
- * //   // echo "Error fetching collection: " . $result['message'];
- * // }
+ * // $result = getCollection($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $collectionId);
  */
 function getCollection(
     string $shopifyUrl,
@@ -957,7 +753,6 @@ function getCollection(
     if (empty($fieldsString)) {
         $fieldsString = 'id title handle';
     }
-
     $query = <<<GRAPHQL
     query getCollection(\$id: ID!) {
       collection(id: \$id) {
@@ -965,7 +760,6 @@ function getCollection(
       }
     }
     GRAPHQL;
-
     $variables = ['id' => $collectionId];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
@@ -977,35 +771,10 @@ function getCollection(
  * @param string $accessToken The Admin API access token.
  * @param string $apiVersion The API version.
  * @param array<string, mixed> $collectionInput Input data conforming to CollectionInput.
- *        For smart collections, include 'ruleSet'. Example: `['title' => 'Summer Vibes']`.
- * @return array<string, mixed> Associative array with 'status' and 'data' (containing created collection details) or 'message'/'details' on error.
- *
+ * @return array<string, mixed> Associative array with 'status' and 'data' or 'message'/'details' on error.
  * @example
- * // // For a custom collection:
  * // $customCollectionInput = ['title' => 'Featured Products'];
  * // $result = createCollection($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $customCollectionInput);
- * //
- * // // For a smart collection:
- * // $smartCollectionInput = [
- * //   'title' => 'Products Over $50',
- * //   'ruleSet' => [
- * //     'appliedDisjunctively' => false,
- * //     'rules' => [
- * //       ['column' => 'VARIANT_PRICE', 'relation' => 'GREATER_THAN', 'condition' => '50.00']
- * //     ]
- * //   ]
- * // ];
- * // $resultSmart = createCollection($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $smartCollectionInput);
- * //
- * // if ($result['status'] === 'success' && isset($result['data']['collectionCreate']['collection'])) {
- * //   // echo "Created Collection ID: " . $result['data']['collectionCreate']['collection']['id'];
- * //   // print_r($result['data']['collectionCreate']['collection']);
- * // } elseif (isset($result['data']['collectionCreate']['userErrors']) && count($result['data']['collectionCreate']['userErrors']) > 0) {
- * //   // echo "Collection creation failed with user errors:";
- * //   // print_r($result['data']['collectionCreate']['userErrors']);
- * // } else {
- * //   // echo "Error creating collection: " . $result['message'];
- * // }
  */
 function createCollection(
     string $shopifyUrl,
@@ -1038,7 +807,6 @@ function createCollection(
       }
     }
     GRAPHQL;
-
     $variables = ['input' => $collectionInput];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
@@ -1050,26 +818,12 @@ function createCollection(
  * @param string $accessToken The Admin API access token.
  * @param string $apiVersion The API version.
  * @param string $collectionId The GID of the collection to update.
- * @param array<string, mixed> $collectionInput Input data conforming to CollectionInput. Must include 'id' => $collectionId.
- * @return array<string, mixed> Associative array with 'status' and 'data' (containing updated collection details) or 'message'/'details' on error.
- *
+ * @param array<string, mixed> $collectionInput Input data. Must include 'id' => $collectionId.
+ * @return array<string, mixed> Associative array with 'status' and 'data' or 'message'/'details' on error.
  * @example
  * // $collectionIdToUpdate = 'gid://shopify/Collection/1234567890123';
- * // $updateData = [
- * //   'id' => $collectionIdToUpdate,
- * //   'title' => 'Super Featured Products - Updated',
- * //   'descriptionHtml' => '<p>Check out these amazing updated products!</p>'
- * // ];
+ * // $updateData = ['id' => $collectionIdToUpdate, 'title' => 'Super Featured Products'];
  * // $result = updateCollection($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $collectionIdToUpdate, $updateData);
- * // if ($result['status'] === 'success' && isset($result['data']['collectionUpdate']['collection'])) {
- * //   // echo "Updated Collection ID: " . $result['data']['collectionUpdate']['collection']['id'];
- * //   // print_r($result['data']['collectionUpdate']['collection']);
- * // } elseif (isset($result['data']['collectionUpdate']['userErrors']) && count($result['data']['collectionUpdate']['userErrors']) > 0) {
- * //   // echo "Collection update failed with user errors:";
- * //   // print_r($result['data']['collectionUpdate']['userErrors']);
- * // } else {
- * //   // echo "Error updating collection: " . $result['message'];
- * // }
  */
 function updateCollection(
     string $shopifyUrl,
@@ -1083,7 +837,6 @@ function updateCollection(
     } elseif ($collectionInput['id'] !== $collectionId) {
         // ID consistency check
     }
-
     $query = <<<GRAPHQL
     mutation collectionUpdate(\$input: CollectionInput!) {
       collectionUpdate(input: \$input) {
@@ -1109,7 +862,6 @@ function updateCollection(
       }
     }
     GRAPHQL;
-
     $variables = ['input' => $collectionInput];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
@@ -1121,19 +873,10 @@ function updateCollection(
  * @param string $accessToken The Admin API access token.
  * @param string $apiVersion The API version.
  * @param string $collectionId The GID of the collection to delete.
- * @return array<string, mixed> Associative array with 'status' and 'data' (containing deletedCollectionId) or 'message'/'details' on error.
- *
+ * @return array<string, mixed> Associative array with 'status' and 'data' or 'message'/'details' on error.
  * @example
  * // $collectionIdToDelete = 'gid://shopify/Collection/1234567890123';
  * // $result = deleteCollection($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $collectionIdToDelete);
- * // if ($result['status'] === 'success' && isset($result['data']['collectionDelete']['deletedCollectionId'])) {
- * //   // echo "Deleted Collection ID: " . $result['data']['collectionDelete']['deletedCollectionId'];
- * // } elseif (isset($result['data']['collectionDelete']['userErrors']) && count($result['data']['collectionDelete']['userErrors']) > 0) {
- * //   // echo "Collection deletion failed with user errors:";
- * //   // print_r($result['data']['collectionDelete']['userErrors']);
- * // } else {
- * //   // echo "Error deleting collection: " . $result['message'];
- * // }
  */
 function deleteCollection(
     string $shopifyUrl,
@@ -1153,35 +896,23 @@ function deleteCollection(
       }
     }
     GRAPHQL;
-
     $variables = ['input' => $input];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
 
 /**
  * Adds a product to a custom collection.
- * Note: This operation is for custom collections. Smart collections are rule-based.
  *
  * @param string $shopifyUrl The Shopify store URL.
  * @param string $accessToken The Admin API access token.
  * @param string $apiVersion The API version.
  * @param string $collectionId The GID of the custom collection.
  * @param string $productId The GID of the product to add.
- * @return array<string, mixed> Associative array with 'status' and 'data' (containing collection details) or 'message'/'details' on error.
- *
+ * @return array<string, mixed> Associative array with 'status' and 'data' or 'message'/'details' on error.
  * @example
- * // $customCollectionId = 'gid://shopify/Collection/1234567890123'; // Must be a Custom Collection
+ * // $customCollectionId = 'gid://shopify/Collection/1234567890123';
  * // $productIdToAdd = 'gid://shopify/Product/9876543210987';
  * // $result = addProductToCollection($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $customCollectionId, $productIdToAdd);
- * // if ($result['status'] === 'success' && isset($result['data']['collectionAddProducts']['collection'])) {
- * //   // echo "Product added to collection. New product count: " . $result['data']['collectionAddProducts']['collection']['productCount'];
- * //   // print_r($result['data']['collectionAddProducts']['collection']);
- * // } elseif (isset($result['data']['collectionAddProducts']['userErrors']) && count($result['data']['collectionAddProducts']['userErrors']) > 0) {
- * //   // echo "Failed to add product to collection due to user errors:";
- * //   // print_r($result['data']['collectionAddProducts']['userErrors']);
- * // } else {
- * //   // echo "Error adding product to collection: " . $result['message'];
- * // }
  */
 function addProductToCollection(
     string $shopifyUrl,
@@ -1213,35 +944,23 @@ function addProductToCollection(
       }
     }
     GRAPHQL;
-
     $variables = ['collectionId' => $collectionId, 'productIds' => [$productId]];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
 
 /**
  * Removes a product from a custom collection.
- * Note: This operation is for custom collections. Smart collections are rule-based.
  *
  * @param string $shopifyUrl The Shopify store URL.
  * @param string $accessToken The Admin API access token.
  * @param string $apiVersion The API version.
  * @param string $collectionId The GID of the custom collection.
  * @param string $productId The GID of the product to remove.
- * @return array<string, mixed> Associative array with 'status' and 'data' (containing collection details) or 'message'/'details' on error.
- *
+ * @return array<string, mixed> Associative array with 'status' and 'data' or 'message'/'details' on error.
  * @example
- * // $customCollectionId = 'gid://shopify/Collection/1234567890123'; // Must be a Custom Collection
+ * // $customCollectionId = 'gid://shopify/Collection/1234567890123';
  * // $productIdToRemove = 'gid://shopify/Product/9876543210987';
  * // $result = removeProductFromCollection($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $customCollectionId, $productIdToRemove);
- * // if ($result['status'] === 'success' && isset($result['data']['collectionRemoveProducts']['collection'])) {
- * //   // echo "Product removed from collection. New product count: " . $result['data']['collectionRemoveProducts']['collection']['productCount'];
- * //   // print_r($result['data']['collectionRemoveProducts']['collection']);
- * // } elseif (isset($result['data']['collectionRemoveProducts']['userErrors']) && count($result['data']['collectionRemoveProducts']['userErrors']) > 0) {
- * //   // echo "Failed to remove product from collection due to user errors:";
- * //   // print_r($result['data']['collectionRemoveProducts']['userErrors']);
- * // } else {
- * //   // echo "Error removing product from collection: " . $result['message'];
- * // }
  */
 function removeProductFromCollection(
     string $shopifyUrl,
@@ -1273,9 +992,595 @@ function removeProductFromCollection(
       }
     }
     GRAPHQL;
-
     $variables = ['collectionId' => $collectionId, 'productIds' => [$productId]];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
+}
+
+/**
+ * Starts a Shopify bulk query operation.
+ *
+ * @param string $shopifyUrl The Shopify store URL.
+ * @param string $accessToken The Admin API access token.
+ * @param string $apiVersion The API version.
+ * @param string $gqlQuery The GraphQL query string for the data to be exported.
+ * @return array<string, mixed> Associative array with 'status' and 'data' or 'message'/'details' on error.
+ * @example
+ * // $bulkQuery = "{ products { edges { node { id title } } } }";
+ * // $result = startBulkQuery($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $bulkQuery);
+ */
+function startBulkQuery(
+    string $shopifyUrl,
+    string $accessToken,
+    string $apiVersion,
+    string $gqlQuery
+): array {
+    $mutation = <<<GRAPHQL
+    mutation bulkOperationRunQuery(\$query: String!) {
+      bulkOperationRunQuery(query: \$query) {
+        bulkOperation {
+          id
+          status
+          createdAt
+          type
+          objectCount
+          errorCode
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+    GRAPHQL;
+    $variables = ['query' => $gqlQuery];
+    return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $mutation, $variables);
+}
+
+/**
+ * Polls the status of an ongoing bulk operation using its GID.
+ *
+ * @param string $shopifyUrl The Shopify store URL.
+ * @param string $accessToken The Admin API access token.
+ * @param string $apiVersion The API version.
+ * @param string $operationId The GID of the bulk operation.
+ * @param array<string|array<mixed>> $fields The list of BulkOperation fields to retrieve.
+ * @return array<string, mixed> Associative array with 'status' and 'data' or 'message'/'details' on error.
+ * @example
+ * // $operationId = 'gid://shopify/BulkOperation/1234567890';
+ * // $result = getBulkOperationStatus($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $operationId);
+ */
+function getBulkOperationStatus(
+    string $shopifyUrl,
+    string $accessToken,
+    string $apiVersion,
+    string $operationId,
+    array $fields = ['id', 'status', 'errorCode', 'createdAt', 'completedAt', 'objectCount', 'fileSize', 'url', 'partialDataUrl', 'type']
+): array {
+    $fieldsString = formatGqlFieldsForQuery($fields);
+    if (empty($fieldsString)) {
+        $fieldsString = 'id status url errorCode'; // Minimal fallback
+    }
+    $query = <<<GRAPHQL
+    query getBulkOperationStatus(\$id: ID!) {
+      node(id: \$id) {
+        ... on BulkOperation {
+          {$fieldsString}
+        }
+      }
+    }
+    GRAPHQL;
+    $variables = ['id' => $operationId];
+    return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
+}
+
+/**
+ * Downloads the JSONL result file from the URL provided by a completed bulk query operation.
+ *
+ * @param string $fileUrl The URL of the result file.
+ * @param string $localFilePath The local path where the downloaded file should be saved.
+ * @return array<string, string> Associative array with 'status': 'success' or 'error', and 'message' on error.
+ * @example
+ * // $downloadUrl = 'https://example.com/path/to/results.jsonl';
+ * // $savePath = __DIR__ . '/shopify_bulk_results.jsonl';
+ * // $result = downloadBulkQueryResult($downloadUrl, $savePath);
+ */
+function downloadBulkQueryResult(string $fileUrl, string $localFilePath): array
+{
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $fileUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 300);
+
+    $fileContent = curl_exec($ch);
+    $curlErrorNo = curl_errno($ch);
+    $curlError = curl_error($ch);
+    $httpStatusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($curlErrorNo) {
+        return ['status' => 'error', 'message' => "cURL error during download: Code {$curlErrorNo} - {$curlError}"];
+    }
+    if ($httpStatusCode !== 200) {
+        return ['status' => 'error', 'message' => "HTTP error during download: Status Code {$httpStatusCode}. Response: " . substr((string)$fileContent, 0, 500)];
+    }
+    if ($fileContent === false || $fileContent === '') {
+        return ['status' => 'error', 'message' => 'Downloaded file content is empty or download failed.'];
+    }
+    try {
+        $bytesWritten = file_put_contents($localFilePath, $fileContent);
+        if ($bytesWritten === false) {
+            if (!is_writable(dirname($localFilePath))) {
+                 return ['status' => 'error', 'message' => "Failed to write to local file: Directory '{$localFilePath}' is not writable."];
+            }
+            return ['status' => 'error', 'message' => "Failed to write to local file: {$localFilePath}. Unknown error."];
+        }
+        return ['status' => 'success', 'message' => "File downloaded and saved to {$localFilePath} ({$bytesWritten} bytes)."];
+    } catch (Throwable $e) {
+        return ['status' => 'error', 'message' => "Exception during file write: " . $e->getMessage()];
+    }
+}
+
+/**
+ * Exports all products (optionally filtered) to a local JSONL file using Shopify's bulk operations.
+ *
+ * @param string $shopifyUrl Your Shopify store URL (e.g., 'your-store.myshopify.com').
+ * @param string $accessToken Your Admin API access token.
+ * @param string $apiVersion The Shopify API version (e.g., '2024-04').
+ * @param string $localFilePath The full local path to save the downloaded JSONL file (e.g., '/tmp/all_products.jsonl').
+ * @param ?string $queryFilter Optional. A filter string for the products query (e.g., "status:active AND vendor:'MyVendor'").
+ * @param array<string|array<mixed>> $productFields The product fields to export.
+ * @param int $pollingIntervalSeconds Interval in seconds to poll for bulk operation status.
+ * @param int $maxAttempts Maximum polling attempts before timing out.
+ * @return array<string, mixed> Result array:
+ *         - Success (download): ['status' => 'success', 'message' => 'Products exported successfully...', 'bulkOperationId' => ..., 'downloadPath' => ...]
+ *         - Success (no data): ['status' => 'success', 'message' => 'Bulk product export completed, but no data...', 'bulkOperationId' => ...]
+ *         - Error: ['status' => 'error', 'message' => '...', 'details' => [...]]
+ *
+ * @example
+ * // $filePath = __DIR__ . '/exported_products.jsonl';
+ * // $filter = "product_type:'Shoes' AND status:active";
+ * // $fields = ['id', 'title', 'handle', 'status', 'productType', 'variants(first:3){edges{node{id sku price}}}'];
+ * // $exportResult = exportAllProducts(
+ * //   $shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $filePath, $filter, $fields
+ * // );
+ */
+function exportAllProducts(
+    string $shopifyUrl,
+    string $accessToken,
+    string $apiVersion,
+    string $localFilePath,
+    ?string $queryFilter = null,
+    array $productFields = ['id', 'title', 'handle', 'vendor', 'status', 'createdAt', 'updatedAt', 'tags', 'productType', 'options { name values }', 'variants(first: 10) { edges { node { id title sku price inventoryQuantity } } }', 'images(first: 5) { edges { node { id url altText } } }'],
+    int $pollingIntervalSeconds = 5,
+    int $maxAttempts = 60
+): array {
+    $formattedProductFields = formatGqlFieldsForQuery($productFields);
+    if (empty($formattedProductFields)) {
+        $formattedProductFields = 'id title handle';
+    }
+
+    $productsQueryArgument = '';
+    if ($queryFilter !== null && trim($queryFilter) !== '') {
+        $productsQueryArgument = sprintf('(query: "%s")', addslashes($queryFilter));
+    }
+
+    $bulkGqlQuery = sprintf(
+        "query { products%s { edges { node { %s } } } }",
+        $productsQueryArgument,
+        $formattedProductFields
+    );
+
+    $startResult = startBulkQuery($shopifyUrl, $accessToken, $apiVersion, $bulkGqlQuery);
+
+    if ($startResult['status'] === 'error') {
+        return $startResult;
+    }
+
+    if (!isset($startResult['data']['bulkOperationRunQuery']['bulkOperation']['id'])) {
+        return [
+            'status' => 'error',
+            'message' => 'Failed to retrieve bulk operation ID after starting.',
+            'details' => $startResult['data']['bulkOperationRunQuery']['userErrors'] ?? $startResult['data'] ?? []
+        ];
+    }
+    $bulkOperationId = $startResult['data']['bulkOperationRunQuery']['bulkOperation']['id'];
+
+    for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
+        sleep($pollingIntervalSeconds);
+        $statusResult = getBulkOperationStatus($shopifyUrl, $accessToken, $apiVersion, $bulkOperationId);
+
+        if ($statusResult['status'] === 'error') {
+            return [
+                'status' => 'error',
+                'message' => 'Failed to get bulk operation status.',
+                'details' => $statusResult['message'] ?? $statusResult['details'] ?? [],
+                'bulkOperationId' => $bulkOperationId
+            ];
+        }
+
+        $operationStatusNode = $statusResult['data']['node'] ?? null;
+        if ($operationStatusNode === null) {
+             return [
+                'status' => 'error',
+                'message' => 'Bulk operation status node is missing in the response.',
+                'details' => ['bulkOperationId' => $bulkOperationId, 'rawStatusResponse' => $statusResult],
+            ];
+        }
+
+        $operationStatus = $operationStatusNode['status'] ?? null;
+        $errorCode = $operationStatusNode['errorCode'] ?? null;
+
+        switch ($operationStatus) {
+            case 'COMPLETED':
+                $downloadUrl = $operationStatusNode['url'] ?? null;
+                if (empty($downloadUrl)) {
+                    return [
+                        'status' => 'success',
+                        'message' => 'Bulk product export completed, but no data was found/generated (no download URL).',
+                        'bulkOperationId' => $bulkOperationId
+                    ];
+                }
+                $downloadResult = downloadBulkQueryResult($downloadUrl, $localFilePath);
+                if ($downloadResult['status'] === 'success') {
+                    return [
+                        'status' => 'success',
+                        'message' => 'Products exported successfully to ' . $localFilePath,
+                        'bulkOperationId' => $bulkOperationId,
+                        'downloadPath' => $localFilePath,
+                        'fileSize' => $operationStatusNode['fileSize'] ?? null
+                    ];
+                } else {
+                    return [
+                        'status' => 'error',
+                        'message' => 'Failed to download bulk export result file.',
+                        'details' => $downloadResult['message'] ?? [],
+                        'bulkOperationId' => $bulkOperationId,
+                        'downloadUrl' => $downloadUrl
+                    ];
+                }
+            case 'FAILED':
+                $partialDataUrl = $operationStatusNode['partialDataUrl'] ?? null;
+                $errorMessage = 'Bulk product export failed.';
+                if ($partialDataUrl) {
+                    $errorMessage .= " Partial data might be available at: {$partialDataUrl}";
+                }
+                return [
+                    'status' => 'error',
+                    'message' => $errorMessage,
+                    'details' => ['errorCode' => $errorCode, 'bulkOperationId' => $bulkOperationId],
+                    'partialDataUrl' => $partialDataUrl
+                ];
+            case 'CANCELLED':
+                return [
+                    'status' => 'error',
+                    'message' => 'Bulk product export was cancelled.',
+                    'details' => ['bulkOperationId' => $bulkOperationId]
+                ];
+            case 'CREATED':
+            case 'RUNNING':
+                break;
+            default:
+                return [
+                    'status' => 'error',
+                    'message' => "Bulk product export encountered an unexpected status: {$operationStatus}.",
+                    'details' => ['bulkOperationId' => $bulkOperationId, 'statusDetails' => $operationStatusNode]
+                ];
+        }
+    }
+
+    return [
+        'status' => 'error',
+        'message' => "Bulk product export timed out after {$maxAttempts} attempts.",
+        'details' => ['bulkOperationId' => $bulkOperationId, 'lastStatus' => $operationStatus ?? 'UNKNOWN']
+    ];
+}
+
+/**
+ * Exports all customers (optionally filtered) to a local JSONL file using Shopify's bulk operations.
+ *
+ * @param string $shopifyUrl Your Shopify store URL.
+ * @param string $accessToken Your Admin API access token.
+ * @param string $apiVersion The Shopify API version.
+ * @param string $localFilePath The full local path to save the downloaded JSONL file.
+ * @param ?string $queryFilter Optional. A filter string for the customers query.
+ * @param array<string|array<mixed>> $customerFields The customer fields to export.
+ * @param int $pollingIntervalSeconds Interval in seconds to poll for bulk operation status.
+ * @param int $maxAttempts Maximum polling attempts before timing out.
+ * @return array<string, mixed> Result array with status, message, and potentially data or details.
+ * @example
+ * // $filePath = __DIR__ . '/exported_customers.jsonl';
+ * // $filter = "accepts_marketing:true AND number_of_orders:>0";
+ * // $fields = ['id', 'firstName', 'lastName', 'email', 'tags'];
+ * // $exportResult = exportAllCustomers($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $filePath, $filter, $fields);
+ */
+function exportAllCustomers(
+    string $shopifyUrl,
+    string $accessToken,
+    string $apiVersion,
+    string $localFilePath,
+    ?string $queryFilter = null,
+    array $customerFields = ['id', 'firstName', 'lastName', 'email', 'phone', 'acceptsMarketing', 'createdAt', 'updatedAt', 'verifiedEmail', 'taxExempt', 'tags', 'numberOfOrders', 'totalSpent { amount currencyCode }', 'defaultAddress { id address1 address2 city provinceCode countryCode zip phone }', 'addresses(first:5) { edges { node { id address1 city countryCode zip } } }'],
+    int $pollingIntervalSeconds = 5,
+    int $maxAttempts = 60
+): array {
+    $formattedCustomerFields = formatGqlFieldsForQuery($customerFields);
+    if (empty($formattedCustomerFields)) {
+        $formattedCustomerFields = 'id email firstName lastName';
+    }
+
+    $customersQueryArgument = '';
+    if ($queryFilter !== null && trim($queryFilter) !== '') {
+        $customersQueryArgument = sprintf('(query: "%s")', addslashes($queryFilter));
+    }
+
+    $bulkGqlQuery = sprintf(
+        "query { customers%s { edges { node { %s } } } }",
+        $customersQueryArgument,
+        $formattedCustomerFields
+    );
+
+    $startResult = startBulkQuery($shopifyUrl, $accessToken, $apiVersion, $bulkGqlQuery);
+
+    if ($startResult['status'] === 'error') {
+        return $startResult;
+    }
+
+    if (!isset($startResult['data']['bulkOperationRunQuery']['bulkOperation']['id'])) {
+        return [
+            'status' => 'error',
+            'message' => 'Failed to retrieve bulk operation ID after starting customer export.',
+            'details' => $startResult['data']['bulkOperationRunQuery']['userErrors'] ?? $startResult['data'] ?? []
+        ];
+    }
+    $bulkOperationId = $startResult['data']['bulkOperationRunQuery']['bulkOperation']['id'];
+
+    for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
+        sleep($pollingIntervalSeconds);
+        $statusResult = getBulkOperationStatus($shopifyUrl, $accessToken, $apiVersion, $bulkOperationId);
+
+        if ($statusResult['status'] === 'error') {
+            return [
+                'status' => 'error',
+                'message' => 'Failed to get bulk customer operation status.',
+                'details' => $statusResult['message'] ?? $statusResult['details'] ?? [],
+                'bulkOperationId' => $bulkOperationId
+            ];
+        }
+        
+        $operationStatusNode = $statusResult['data']['node'] ?? null;
+        if ($operationStatusNode === null) {
+             return [
+                'status' => 'error',
+                'message' => 'Bulk operation status node is missing in the response for customer export.',
+                'details' => ['bulkOperationId' => $bulkOperationId, 'rawStatusResponse' => $statusResult],
+            ];
+        }
+
+        $operationStatus = $operationStatusNode['status'] ?? null;
+        $errorCode = $operationStatusNode['errorCode'] ?? null;
+
+        switch ($operationStatus) {
+            case 'COMPLETED':
+                $downloadUrl = $operationStatusNode['url'] ?? null;
+                if (empty($downloadUrl)) {
+                    return [
+                        'status' => 'success',
+                        'message' => 'Bulk customer export completed, but no data was found/generated (no download URL).',
+                        'bulkOperationId' => $bulkOperationId
+                    ];
+                }
+                $downloadResult = downloadBulkQueryResult($downloadUrl, $localFilePath);
+                if ($downloadResult['status'] === 'success') {
+                    return [
+                        'status' => 'success',
+                        'message' => 'Customers exported successfully to ' . $localFilePath,
+                        'bulkOperationId' => $bulkOperationId,
+                        'downloadPath' => $localFilePath,
+                        'fileSize' => $operationStatusNode['fileSize'] ?? null
+                    ];
+                } else {
+                    return [
+                        'status' => 'error',
+                        'message' => 'Failed to download bulk customer export result file.',
+                        'details' => $downloadResult['message'] ?? [],
+                        'bulkOperationId' => $bulkOperationId,
+                        'downloadUrl' => $downloadUrl
+                    ];
+                }
+            case 'FAILED':
+                $partialDataUrl = $operationStatusNode['partialDataUrl'] ?? null;
+                $errorMessage = 'Bulk customer export failed.';
+                if ($partialDataUrl) {
+                    $errorMessage .= " Partial data might be available at: {$partialDataUrl}";
+                }
+                return [
+                    'status' => 'error',
+                    'message' => $errorMessage,
+                    'details' => ['errorCode' => $errorCode, 'bulkOperationId' => $bulkOperationId],
+                    'partialDataUrl' => $partialDataUrl
+                ];
+            case 'CANCELLED':
+                return [
+                    'status' => 'error',
+                    'message' => 'Bulk customer export was cancelled.',
+                    'details' => ['bulkOperationId' => $bulkOperationId]
+                ];
+            case 'CREATED':
+            case 'RUNNING':
+                break;
+            default:
+                return [
+                    'status' => 'error',
+                    'message' => "Bulk customer export encountered an unexpected status: {$operationStatus}.",
+                    'details' => ['bulkOperationId' => $bulkOperationId, 'statusDetails' => $operationStatusNode]
+                ];
+        }
+    }
+
+    return [
+        'status' => 'error',
+        'message' => "Bulk customer export timed out after {$maxAttempts} attempts.",
+        'details' => ['bulkOperationId' => $bulkOperationId, 'lastStatus' => $operationStatus ?? 'UNKNOWN']
+    ];
+}
+
+/**
+ * Exports all orders (optionally filtered) to a local JSONL file using Shopify's bulk operations.
+ *
+ * @param string $shopifyUrl Your Shopify store URL.
+ * @param string $accessToken Your Admin API access token.
+ * @param string $apiVersion The Shopify API version.
+ * @param string $localFilePath The full local path to save the downloaded JSONL file.
+ * @param ?string $queryFilter Optional. A filter string for the orders query (e.g., "financial_status:paid AND created_at:>=YYYY-MM-DD").
+ * @param array<string|array<mixed>> $orderFields The order fields to export.
+ * @param int $pollingIntervalSeconds Interval in seconds to poll for bulk operation status.
+ * @param int $maxAttempts Maximum polling attempts before timing out.
+ * @return array<string, mixed> Result array with status, message, and potentially data or details.
+ *
+ * @example
+ * // $filePath = __DIR__ . '/exported_orders.jsonl';
+ * // $filter = "financial_status:paid AND created_at:>=2023-01-01T00:00:00Z";
+ * // $fields = ['id', 'name', 'email', 'processedAt', 'totalPriceSet { shopMoney { amount currencyCode } }'];
+ * // $exportResult = exportAllOrders(
+ * //   $shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $filePath, $filter, $fields
+ * // );
+ * // if ($exportResult['status'] === 'success') {
+ * //   // echo $exportResult['message'] . "\n";
+ * // } else {
+ * //   // echo "Order export failed: " . $exportResult['message'] . "\n";
+ * // }
+ */
+function exportAllOrders(
+    string $shopifyUrl,
+    string $accessToken,
+    string $apiVersion,
+    string $localFilePath,
+    ?string $queryFilter = null,
+    array $orderFields = ['id', 'name', 'email', 'displayFinancialStatus', 'displayFulfillmentStatus', 'processedAt', 'createdAt', 'updatedAt', 'tags', 'totalPriceSet { shopMoney { amount currencyCode } }', 'subtotalPriceSet { shopMoney { amount currencyCode } }', 'totalTaxSet { shopMoney { amount currencyCode } }', 'customer { id firstName lastName email }', 'billingAddress { address1 city countryCode zip }', 'shippingAddress { address1 city countryCode zip }', 'lineItems(first: 10) { edges { node { id title quantity sku variant { id title } priceSet { shopMoney { amount currencyCode } } } } }'],
+    int $pollingIntervalSeconds = 5,
+    int $maxAttempts = 60
+): array {
+    $formattedOrderFields = formatGqlFieldsForQuery($orderFields);
+    if (empty($formattedOrderFields)) {
+        $formattedOrderFields = 'id name email totalPriceSet { shopMoney { amount currencyCode } }'; // Minimal fallback
+    }
+
+    $ordersQueryArgument = '';
+    if ($queryFilter !== null && trim($queryFilter) !== '') {
+        $ordersQueryArgument = sprintf('(query: "%s")', addslashes($queryFilter));
+    }
+
+    $bulkGqlQuery = sprintf(
+        "query { orders%s { edges { node { %s } } } }",
+        $ordersQueryArgument,
+        $formattedOrderFields
+    );
+
+    $startResult = startBulkQuery($shopifyUrl, $accessToken, $apiVersion, $bulkGqlQuery);
+
+    if ($startResult['status'] === 'error') {
+        return $startResult;
+    }
+
+    if (!isset($startResult['data']['bulkOperationRunQuery']['bulkOperation']['id'])) {
+        return [
+            'status' => 'error',
+            'message' => 'Failed to retrieve bulk operation ID after starting order export.',
+            'details' => $startResult['data']['bulkOperationRunQuery']['userErrors'] ?? $startResult['data'] ?? []
+        ];
+    }
+    $bulkOperationId = $startResult['data']['bulkOperationRunQuery']['bulkOperation']['id'];
+
+    for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
+        sleep($pollingIntervalSeconds);
+        $statusResult = getBulkOperationStatus($shopifyUrl, $accessToken, $apiVersion, $bulkOperationId);
+
+        if ($statusResult['status'] === 'error') {
+            return [
+                'status' => 'error',
+                'message' => 'Failed to get bulk order operation status.',
+                'details' => $statusResult['message'] ?? $statusResult['details'] ?? [],
+                'bulkOperationId' => $bulkOperationId
+            ];
+        }
+        
+        $operationStatusNode = $statusResult['data']['node'] ?? null;
+        if ($operationStatusNode === null) {
+             return [
+                'status' => 'error',
+                'message' => 'Bulk operation status node is missing in the response for order export.',
+                'details' => ['bulkOperationId' => $bulkOperationId, 'rawStatusResponse' => $statusResult],
+            ];
+        }
+
+        $operationStatus = $operationStatusNode['status'] ?? null;
+        $errorCode = $operationStatusNode['errorCode'] ?? null;
+
+        switch ($operationStatus) {
+            case 'COMPLETED':
+                $downloadUrl = $operationStatusNode['url'] ?? null;
+                if (empty($downloadUrl)) {
+                    return [
+                        'status' => 'success',
+                        'message' => 'Bulk order export completed, but no data was found/generated (no download URL).',
+                        'bulkOperationId' => $bulkOperationId
+                    ];
+                }
+                $downloadResult = downloadBulkQueryResult($downloadUrl, $localFilePath);
+                if ($downloadResult['status'] === 'success') {
+                    return [
+                        'status' => 'success',
+                        'message' => 'Orders exported successfully to ' . $localFilePath,
+                        'bulkOperationId' => $bulkOperationId,
+                        'downloadPath' => $localFilePath,
+                        'fileSize' => $operationStatusNode['fileSize'] ?? null
+                    ];
+                } else {
+                    return [
+                        'status' => 'error',
+                        'message' => 'Failed to download bulk order export result file.',
+                        'details' => $downloadResult['message'] ?? [],
+                        'bulkOperationId' => $bulkOperationId,
+                        'downloadUrl' => $downloadUrl
+                    ];
+                }
+            case 'FAILED':
+                $partialDataUrl = $operationStatusNode['partialDataUrl'] ?? null;
+                $errorMessage = 'Bulk order export failed.';
+                if ($partialDataUrl) {
+                    $errorMessage .= " Partial data might be available at: {$partialDataUrl}";
+                }
+                return [
+                    'status' => 'error',
+                    'message' => $errorMessage,
+                    'details' => ['errorCode' => $errorCode, 'bulkOperationId' => $bulkOperationId],
+                    'partialDataUrl' => $partialDataUrl
+                ];
+            case 'CANCELLED':
+                return [
+                    'status' => 'error',
+                    'message' => 'Bulk order export was cancelled.',
+                    'details' => ['bulkOperationId' => $bulkOperationId]
+                ];
+            case 'CREATED':
+            case 'RUNNING':
+                // Continue polling
+                break;
+            default:
+                return [
+                    'status' => 'error',
+                    'message' => "Bulk order export encountered an unexpected status: {$operationStatus}.",
+                    'details' => ['bulkOperationId' => $bulkOperationId, 'statusDetails' => $operationStatusNode]
+                ];
+        }
+    }
+
+    return [
+        'status' => 'error',
+        'message' => "Bulk order export timed out after {$maxAttempts} attempts.",
+        'details' => ['bulkOperationId' => $bulkOperationId, 'lastStatus' => $operationStatus ?? 'UNKNOWN']
+    ];
 }
 
 ?>

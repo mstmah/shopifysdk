@@ -1,0 +1,418 @@
+<?php
+
+/**
+ * Square PHP Integration Library
+ *
+ * This library provides wrapper functions to interact with the Square API using the Square PHP SDK.
+ * It simplifies common operations like creating payments, orders, and refunds.
+ *
+ * @version 1.0.0
+ * @license MIT
+ *
+ * REQUIREMENTS:
+ * - PHP 8.0 or higher is recommended for these wrapper functions (due to type hints and modern practices).
+ *   The Square PHP SDK itself might support older PHP versions (e.g., PHP 7.2+), check SDK documentation for specifics.
+ * - Square PHP SDK: Must be installed via Composer (`composer require square/square`).
+ * - Composer Autoloader: Your script must include `vendor/autoload.php`.
+ *
+ * SECURITY & CONFIGURATION:
+ * - Access Token Security: The Square Access Token (`accessToken`) is a highly sensitive credential.
+ *   It MUST NOT be hardcoded directly in your application's source code in a production environment.
+ *   Store it securely using:
+ *     - Environment variables (e.g., $_ENV['SQUARE_ACCESS_TOKEN'] or getenv('SQUARE_ACCESS_TOKEN')).
+ *     - Secure configuration files stored outside the webroot, with restricted access.
+ *     - Dedicated secrets management services (e.g., HashiCorp Vault, AWS Secrets Manager, Google Cloud Secret Manager).
+ * - PCI Compliance: These payment functions are designed to be used with a `sourceId` (e.g., a payment token)
+ *   obtained from Square's secure frontend solutions (like the Square Web Payments SDK or In-App Payments SDK).
+ *   This approach significantly minimizes your PCI DSS compliance scope as sensitive card details
+ *   are handled directly by Square and not processed or stored on your server.
+ *   NEVER transmit or store raw credit card numbers, CVV codes, or full magnetic stripe data on your server.
+ * - Client Initialization: The `Square\SquareClient` instance passed to these functions must be correctly
+ *   initialized with your Access Token and the target environment (e.g., `Square\Environment::SANDBOX` for testing,
+ *   `Square\Environment::PRODUCTION` for live operations).
+ * - Location ID: Most Square operations are location-specific. Ensure you use the correct `locationId`
+ *   for your transactions and orders, obtained from your Square Developer Dashboard.
+ *
+ * BASIC USAGE EXAMPLE:
+ * ```php
+ * <?php
+ *
+ * // 1. Include Composer's autoloader (adjust path if necessary)
+ * require_once __DIR__ . '/vendor/autoload.php';
+ *
+ * // 2. Include this integration library
+ * require_once __DIR__ . '/square_integration.php';
+ *
+ * // 3. Use necessary Square SDK classes
+ * use Square\SquareClient;
+ * use Square\Environment;
+ *
+ * // 4. Initialize the Square Client
+ * // !!! REPLACE 'YOUR_SANDBOX_ACCESS_TOKEN' WITH YOUR ACTUAL SANDBOX TOKEN !!!
+ * // !!! ALWAYS USE Environment::SANDBOX FOR TESTING !!!
+ * $squareAccessToken = 'YOUR_SANDBOX_ACCESS_TOKEN';
+ * $client = null;
+ * try {
+ *     $client = new SquareClient([
+ *         'accessToken' => $squareAccessToken,
+ *         'environment' => Environment::SANDBOX,
+ *     ]);
+ * } catch (Exception $e) {
+ *     echo "Failed to initialize Square Client: " . $e->getMessage();
+ *     exit;
+ * }
+ *
+ * // 5. Example: Get payment details (replace with a real payment ID from your sandbox)
+ * $paymentIdToTest = 'REPLACE_WITH_A_REAL_SANDBOX_PAYMENT_ID';
+ *
+ * if ($client && $paymentIdToTest !== 'REPLACE_WITH_A_REAL_SANDBOX_PAYMENT_ID') {
+ *     $result = square_get_payment($client, $paymentIdToTest);
+ *
+ *     if ($result['success']) {
+ *         echo "Payment details retrieved successfully: \n";
+ *         // The 'data' element contains the \Square\Models\Payment object
+ *         // You can use its getter methods, e.g., $result['data']->getId(), $result['data']->getAmountMoney()->getAmount()
+ *         print_r($result['data']);
+ *     } else {
+ *         echo "Failed to get payment details: \n";
+ *         print_r($result['error_messages']);
+ *     }
+ * } else {
+ *     if ($paymentIdToTest === 'REPLACE_WITH_A_REAL_SANDBOX_PAYMENT_ID') {
+ *         echo "Please replace 'REPLACE_WITH_A_REAL_SANDBOX_PAYMENT_ID' with an actual payment ID from your Square Sandbox to test.\n";
+ *     }
+ *     if (!$client) {
+ *          echo "Square client not initialized.\n";
+ *     }
+ * }
+ *
+ * ?>
+ * ```
+ *
+ */
+
+use Square\SquareClient;
+use Square\Models\CreatePaymentRequest;
+use Square\Models\Money;
+use Square\Models\RefundPaymentRequest;
+use Square\Models\CreateOrderRequest;
+use Square\Models\Order;
+use Square\Models\OrderLineItem;
+use Square\Exceptions\ApiException;
+use Square\Environment; // Included for context; client initialization happens outside these functions.
+
+/**
+ * Creates a payment using the Square Payments API.
+ *
+ * @param SquareClient $squareClient An initialized and configured `Square\SquareClient` instance
+ *                                   (e.g., set to `Environment::SANDBOX` for testing).
+ * @param string $sourceId The ID of the payment source. This MUST be a token generated by Square's
+ *                         secure frontend (Web Payments SDK, In-App Payments SDK) or a card-on-file ID.
+ *                         Crucial for PCI compliance; do not handle raw card details.
+ * @param int $amount The amount to charge, in the smallest currency unit (e.g., cents for USD).
+ * @param string $currency The currency code (e.g., "USD", "CAD"). Refer to Square documentation for supported currencies.
+ * @param string $idempotencyKey A unique key (e.g., UUID v4) to prevent duplicate payment processing.
+ *                               Essential for safely retrying requests without creating multiple charges.
+ * @param string|null $locationId The ID of the location to associate this payment with. If null, Square may use the
+ *                                default location configured for your account or the access token.
+ * @param string|null $orderId Optional: The ID of an order to associate with this payment.
+ * @param string|null $note Optional: A note to associate with the payment. Max 500 characters.
+ * @param string|null $customerId Optional: The ID of the customer associated with this payment.
+ * @param int|null $appFeeAmount Optional: The amount of an application fee to charge, in cents.
+ *                               Requires app to be authorized for app fee collection.
+ *
+ * @return array An associative array:
+ *               ['success' => bool, 'data' => \Square\Models\Payment|null, 'error_messages' => array|null]
+ *               - 'success': True if the API call was successful and a Payment object was returned.
+ *               - 'data': The `\Square\Models\Payment` object on success.
+ *               - 'error_messages': An array of error details if the API call failed. These messages are
+ *                                   extracted from `Square\Exceptions\ApiException` (from `getErrors()` or `getMessage()`)
+ *                                   or from a generic Exception.
+ */
+function square_create_payment(
+    SquareClient $squareClient,
+    string $sourceId,
+    int $amount,
+    string $currency,
+    string $idempotencyKey,
+    ?string $locationId = null,
+    ?string $orderId = null,
+    ?string $note = null,
+    ?string $customerId = null,
+    ?int $appFeeAmount = null
+): array {
+    $amountMoney = new Money();
+    $amountMoney->setAmount($amount);
+    $amountMoney->setCurrency($currency);
+
+    $paymentRequestBuilder = new CreatePaymentRequest(
+        $sourceId,
+        $idempotencyKey
+    );
+    $paymentRequestBuilder->setAmountMoney($amountMoney);
+
+    if ($locationId !== null) {
+        $paymentRequestBuilder->setLocationId($locationId);
+    }
+    if ($orderId !== null) {
+        $paymentRequestBuilder->setOrderId($orderId);
+    }
+    if ($note !== null) {
+        $paymentRequestBuilder->setNote($note);
+    }
+    if ($customerId !== null) {
+        $paymentRequestBuilder->setCustomerId($customerId);
+    }
+    if ($appFeeAmount !== null) {
+        $appFeeMoney = new Money();
+        $appFeeMoney->setAmount($appFeeAmount);
+        $appFeeMoney->setCurrency($currency); // Assuming app fee is in the same currency
+        $paymentRequestBuilder->setAppFeeMoney($appFeeMoney);
+    }
+
+    $request = $paymentRequestBuilder->build();
+
+    try {
+        $response = $squareClient->getPaymentsApi()->createPayment($request);
+        if ($response->isSuccess()) {
+            return ['success' => true, 'data' => $response->getResult()->getPayment(), 'error_messages' => null];
+        } else {
+            $errors = [];
+            foreach ($response->getErrors() as $error) {
+                $errors[] = "Error ({$error->getCategory()} - {$error->getCode()}): {$error->getDetail()} " . ($error->getField() ? "Field: {$error->getField()}" : "");
+            }
+            return ['success' => false, 'data' => null, 'error_messages' => $errors];
+        }
+    } catch (ApiException $e) {
+        $errorMessages = [];
+        if ($e->getErrors()) {
+            foreach ($e->getErrors() as $error) {
+                 $errorMessages[] = "API Error ({$error->getCategory()} - {$error->getCode()}): {$error->getDetail()} " . ($error->getField() ? "Field: {$error->getField()}" : "");
+            }
+        } else {
+            $errorMessages[] = "API Exception: " . $e->getMessage();
+        }
+        return ['success' => false, 'data' => null, 'error_messages' => $errorMessages];
+    } catch (Exception $e) {
+        return ['success' => false, 'data' => null, 'error_messages' => ["General Exception: " . $e->getMessage()]];
+    }
+}
+
+/**
+ * Retrieves details for a specific payment.
+ *
+ * @param SquareClient $squareClient An initialized and configured `Square\SquareClient` instance.
+ * @param string $paymentId The ID of the payment to retrieve.
+ *
+ * @return array An associative array:
+ *               ['success' => bool, 'data' => \Square\Models\Payment|null, 'error_messages' => array|null]
+ *               - 'success': True if the API call was successful.
+ *               - 'data': The `\Square\Models\Payment` object on success.
+ *               - 'error_messages': An array of error details if the API call failed, extracted from
+ *                                   `Square\Exceptions\ApiException` or a generic Exception.
+ */
+function square_get_payment(SquareClient $squareClient, string $paymentId): array
+{
+    try {
+        $response = $squareClient->getPaymentsApi()->getPayment($paymentId);
+        if ($response->isSuccess()) {
+            return ['success' => true, 'data' => $response->getResult()->getPayment(), 'error_messages' => null];
+        } else {
+            $errors = [];
+            foreach ($response->getErrors() as $error) {
+                $errors[] = "Error ({$error->getCategory()} - {$error->getCode()}): {$error->getDetail()} " . ($error->getField() ? "Field: {$error->getField()}" : "");
+            }
+            return ['success' => false, 'data' => null, 'error_messages' => $errors];
+        }
+    } catch (ApiException $e) {
+        $errorMessages = [];
+        if ($e->getErrors()) {
+            foreach ($e->getErrors() as $error) {
+                 $errorMessages[] = "API Error ({$error->getCategory()} - {$error->getCode()}): {$error->getDetail()} " . ($error->getField() ? "Field: {$error->getField()}" : "");
+            }
+        } else {
+            $errorMessages[] = "API Exception: " . $e->getMessage();
+        }
+        return ['success' => false, 'data' => null, 'error_messages' => $errorMessages];
+    } catch (Exception $e) {
+        return ['success' => false, 'data' => null, 'error_messages' => ["General Exception: " . $e->getMessage()]];
+    }
+}
+
+/**
+ * Creates a refund for a previously processed payment.
+ *
+ * @param SquareClient $squareClient An initialized and configured `Square\SquareClient` instance.
+ * @param string $paymentId The ID of the payment to be refunded. This payment must be in a refundable state.
+ * @param int $amount The amount to refund, in cents. Must be greater than 0 and not exceed the refundable amount.
+ * @param string $currency The currency of the refund amount (e.g., "USD"). Must match the original payment's currency.
+ * @param string $idempotencyKey A unique key (e.g., UUID v4) to prevent duplicate refund processing.
+ *                               Essential for safely retrying requests.
+ * @param string $reason A note explaining the reason for the refund. Max 192 characters.
+ * @param string|null $locationId Optional: The ID of the location associated with the original payment.
+ *                                While the SDK's `RefundPaymentRequest` model doesn't directly take `location_id`
+ *                                (it's often inferred from the payment or client config), providing it here can be
+ *                                useful for logging or if future SDK versions change. The API call itself is made
+ *                                via `$squareClient->getRefundsApi()`, which is location-aware based on client setup.
+ *
+ * @return array An associative array:
+ *               ['success' => bool, 'data' => \Square\Models\Refund|null, 'error_messages' => array|null]
+ *               - 'success': True if the API call was successful and a Refund object was returned.
+ *               - 'data': The `\Square\Models\Refund` object on success.
+ *               - 'error_messages': An array of error details if the API call failed, extracted from
+ *                                   `Square\Exceptions\ApiException` or a generic Exception.
+ */
+function square_create_refund(
+    SquareClient $squareClient,
+    string $paymentId,
+    int $amount,
+    string $currency,
+    string $idempotencyKey,
+    string $reason,
+    ?string $locationId = null // Retained for consistency, though not directly on SDK request body
+): array {
+    $amountMoney = new Money();
+    $amountMoney->setAmount($amount);
+    $amountMoney->setCurrency($currency);
+
+    $refundRequestBuilder = new RefundPaymentRequest(
+        $idempotencyKey,
+        $amountMoney,
+        $paymentId
+    );
+    $refundRequestBuilder->setReason($reason);
+
+    // Note on $locationId for refunds:
+    // The Square PHP SDK's RefundPaymentRequest model and RefundsApi->refundPayment method
+    // do not directly accept a location_id parameter for the request body.
+    // The location context is typically derived from the original payment's location_id
+    // or the SquareClient's configuration. If a specific location is required for a refund
+    // that differs, this would need to be handled at the client configuration level or
+    // by ensuring the original payment was processed at the correct location.
+    // The $locationId parameter is kept in this wrapper for potential logging or future use
+    // if the SDK's API for this specific call changes.
+
+    $request = $refundRequestBuilder->build();
+
+    try {
+        $response = $squareClient->getRefundsApi()->refundPayment($request);
+        if ($response->isSuccess()) {
+            return ['success' => true, 'data' => $response->getResult()->getRefund(), 'error_messages' => null];
+        } else {
+            $errors = [];
+            foreach ($response->getErrors() as $error) {
+                $errors[] = "Error ({$error->getCategory()} - {$error->getCode()}): {$error->getDetail()} " . ($error->getField() ? "Field: {$error->getField()}" : "");
+            }
+            return ['success' => false, 'data' => null, 'error_messages' => $errors];
+        }
+    } catch (ApiException $e) {
+        $errorMessages = [];
+        if ($e->getErrors()) {
+            foreach ($e->getErrors() as $error) {
+                 $errorMessages[] = "API Error ({$error->getCategory()} - {$error->getCode()}): {$error->getDetail()} " . ($error->getField() ? "Field: {$error->getField()}" : "");
+            }
+        } else {
+            $errorMessages[] = "API Exception: " . $e->getMessage();
+        }
+        return ['success' => false, 'data' => null, 'error_messages' => $errorMessages];
+    } catch (Exception $e) {
+        return ['success' => false, 'data' => null, 'error_messages' => ["General Exception: " . $e->getMessage()]];
+    }
+}
+
+/**
+ * Creates an order using the Square Orders API.
+ *
+ * @param SquareClient $squareClient An initialized and configured `Square\SquareClient` instance.
+ * @param string $locationId The ID of the location where the order is being placed. This is mandatory.
+ * @param array $lineItems An array of line items. Each item is an associative array:
+ *                         ['name' => string, 'quantity' => string (e.g., "1"), 'amount' => int (cents), 'currency' => string (e.g., "USD")]
+ *                         Example: [['name' => 'Coffee', 'quantity' => '1', 'amount' => 500, 'currency' => 'USD']]
+ *                         Ensure 'quantity' is a string as per Square SDK requirements for OrderLineItem.
+ * @param string $idempotencyKey A unique key (e.g., UUID v4) to prevent duplicate order creation.
+ *                               Essential for safely retrying requests.
+ * @param string|null $referenceId Optional: A user-defined reference ID for the order. Max 40 characters.
+ * @param string|null $customerId Optional: The ID of the customer associated with this order.
+ * @param string|null $note Optional: A note to associate with the order. Max 500 characters.
+ *
+ * @return array An associative array:
+ *               ['success' => bool, 'data' => \Square\Models\Order|null, 'error_messages' => array|null]
+ *               - 'success': True if the API call was successful and an Order object was returned.
+ *               - 'data': The `\Square\Models\Order` object on success.
+ *               - 'error_messages': An array of error details if the API call failed, extracted from
+ *                                   `Square\Exceptions\ApiException` or a generic Exception.
+ */
+function square_create_order(
+    SquareClient $squareClient,
+    string $locationId,
+    array $lineItems,
+    string $idempotencyKey,
+    ?string $referenceId = null,
+    ?string $customerId = null,
+    ?string $note = null
+): array {
+    $order = new Order($locationId);
+
+    $sdkLineItems = [];
+    foreach ($lineItems as $item) {
+        // Basic validation for line item structure
+        if (!isset($item['name']) || !isset($item['quantity']) || !isset($item['amount']) || !isset($item['currency'])) {
+             return ['success' => false, 'data' => null, 'error_messages' => ["Invalid line item structure. Each item must have 'name', 'quantity', 'amount', and 'currency'."]];
+        }
+        if (!is_string($item['quantity'])) { // Square SDK expects quantity as string for OrderLineItem
+            return ['success' => false, 'data' => null, 'error_messages' => ["Invalid line item quantity for '{$item['name']}'. Quantity must be a string."]];
+        }
+
+        $basePriceMoney = new Money();
+        $basePriceMoney->setAmount($item['amount']);
+        $basePriceMoney->setCurrency($item['currency']);
+
+        $lineItem = new OrderLineItem($item['quantity']); // Quantity must be a string
+        $lineItem->setName($item['name']);
+        $lineItem->setBasePriceMoney($basePriceMoney);
+        $sdkLineItems[] = $lineItem;
+    }
+    $order->setLineItems($sdkLineItems);
+
+    if ($referenceId !== null) {
+        $order->setReferenceId($referenceId);
+    }
+    if ($customerId !== null) {
+        $order->setCustomerId($customerId);
+    }
+    if ($note !== null) {
+        $order->setNote($note);
+    }
+
+    $createOrderRequest = new CreateOrderRequest();
+    $createOrderRequest->setOrder($order);
+    $createOrderRequest->setIdempotencyKey($idempotencyKey);
+    // $createOrderRequest->setLocationId($locationId); // Not needed here as locationId is part of the Order object itself.
+
+    try {
+        $response = $squareClient->getOrdersApi()->createOrder($createOrderRequest);
+        if ($response->isSuccess()) {
+            return ['success' => true, 'data' => $response->getResult()->getOrder(), 'error_messages' => null];
+        } else {
+            $errors = [];
+            foreach ($response->getErrors() as $error) {
+                $errors[] = "Error ({$error->getCategory()} - {$error->getCode()}): {$error->getDetail()} " . ($error->getField() ? "Field: {$error->getField()}" : "");
+            }
+            return ['success' => false, 'data' => null, 'error_messages' => $errors];
+        }
+    } catch (ApiException $e) {
+        $errorMessages = [];
+        if ($e->getErrors()) {
+            foreach ($e->getErrors() as $error) {
+                 $errorMessages[] = "API Error ({$error->getCategory()} - {$error->getCode()}): {$error->getDetail()} " . ($error->getField() ? "Field: {$error->getField()}" : "");
+            }
+        } else {
+            $errorMessages[] = "API Exception: " . $e->getMessage();
+        }
+        return ['success' => false, 'data' => null, 'error_messages' => $errorMessages];
+    } catch (Exception $e) {
+        return ['success' => false, 'data' => null, 'error_messages' => ["General Exception: " . $e->getMessage()]];
+    }
+}
+
+?>

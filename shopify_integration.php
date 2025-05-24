@@ -248,6 +248,48 @@ function shopify_create_draft_order(
         return ['success' => false, 'data' => null, 'error_messages' => ["Exception: " . $e->getMessage()]];
     }
 }
+/*
+// --- Example Usage for shopify_create_draft_order ---
+// // Assume $shopifyClient is initialized as per the main file comment or your specific setup.
+// if (isset($shopifyClient)) {
+//     $variantId = 'gid://shopify/ProductVariant/REPLACE_VARIANT_ID'; // Replace with a real variant GID from your dev store
+//     $lineItems = [
+//         ['variantId' => $variantId, 'quantity' => 1],
+//         ['title' => 'Custom Item Fee', 'originalUnitPrice' => '10.50', 'quantity' => 1]
+//     ];
+//     $customerEmail = 'testcustomer@example.com';
+//     $note = 'This is a test draft order created via PHP.';
+//     $shippingAddress = [
+//         'address1' => '123 Test St',
+//         'city' => 'Testville',
+//         'provinceCode' => 'CA', // Province/State code
+//         'countryCode' => 'US',   // Country code
+//         'zip' => '12345'
+//     ];
+//     // $currencyCode = 'USD'; // Optional, defaults to store currency
+
+//     // if ($variantId !== 'gid://shopify/ProductVariant/REPLACE_VARIANT_ID') {
+//     //     $result = shopify_create_draft_order(
+//     //         $shopifyClient,
+//     //         $lineItems,
+//     //         $customerEmail,
+//     //         $note,
+//     //         $shippingAddress
+//     //         // null, // billingAddress
+//     //         // [['key' => 'custom_ref', 'value' => 'REF123']], // customAttributes
+//     //         // ['test', 'php_api'], // tags
+//     //         // $currencyCode
+//     //     );
+//     //     // print_r($result);
+//     // } else {
+//     //     // print_r("Please replace 'gid://shopify/ProductVariant/REPLACE_VARIANT_ID' before running this example.\n");
+//     // }
+// } else {
+//     // print_r("Shopify client is not initialized. Please check your setup.\n");
+// }
+// // IMPORTANT: Replace placeholders like 'gid://shopify/ProductVariant/REPLACE_VARIANT_ID' with actual data from your Shopify Development Store.
+// // Ensure $shopifyClient is properly initialized with your store's credentials and a working GraphQL client.
+*/
 
 /**
  * Completes a draft order, converting it into an actual order.
@@ -317,6 +359,29 @@ function shopify_complete_draft_order(
         return ['success' => false, 'data' => null, 'error_messages' => ["Exception: " . $e->getMessage()]];
     }
 }
+/*
+// --- Example Usage for shopify_complete_draft_order ---
+// // Assume $shopifyClient is initialized.
+// if (isset($shopifyClient)) {
+//     $draftOrderIdToComplete = 'gid://shopify/DraftOrder/REPLACE_DRAFT_ORDER_ID'; // Replace with a real Draft Order GID
+
+//     // if ($draftOrderIdToComplete !== 'gid://shopify/DraftOrder/REPLACE_DRAFT_ORDER_ID') {
+//     //     $result = shopify_complete_draft_order(
+//     //         $shopifyClient,
+//     //         $draftOrderIdToComplete,
+//     //         true // paymentPending: true - means payment will be collected later or manually
+//     //         // null // paymentGatewayId - not needed if paymentPending is true
+//     //     );
+//     //     // print_r($result);
+//     // } else {
+//     //     // print_r("Please replace 'gid://shopify/DraftOrder/REPLACE_DRAFT_ORDER_ID' before running this example.\n");
+//     // }
+// } else {
+//     // print_r("Shopify client is not initialized.\n");
+// }
+// // IMPORTANT: Replace 'gid://shopify/DraftOrder/REPLACE_DRAFT_ORDER_ID' with an actual Draft Order GID from your Shopify Development Store.
+// // Ensure $shopifyClient is properly initialized.
+*/
 
 /**
  * Retrieves details of a specific order.
@@ -378,6 +443,23 @@ function shopify_get_order_details(object $shopifyClient, string $orderId): arra
         return ['success' => false, 'data' => null, 'error_messages' => ["Exception: " . $e->getMessage()]];
     }
 }
+/*
+// --- Example Usage for shopify_get_order_details ---
+// // Assume $shopifyClient is initialized.
+// if (isset($shopifyClient)) {
+//     $orderIdToGet = 'gid://shopify/Order/REPLACE_ORDER_ID'; // Replace with a real Order GID
+
+//     // if ($orderIdToGet !== 'gid://shopify/Order/REPLACE_ORDER_ID') {
+//     //     $result = shopify_get_order_details($shopifyClient, $orderIdToGet);
+//     //     // print_r($result);
+//     // } else {
+//     //     // print_r("Please replace 'gid://shopify/Order/REPLACE_ORDER_ID' before running this example.\n");
+//     // }
+// } else {
+//     // print_r("Shopify client is not initialized.\n");
+// }
+// // IMPORTANT: Replace 'gid://shopify/Order/REPLACE_ORDER_ID' with an actual Order GID from your Shopify Development Store.
+*/
 
 /**
  * Creates a manual payment transaction for an existing order using the `orderCreateManualPayment` mutation.
@@ -459,7 +541,33 @@ function shopify_create_order_transaction(
         return ['success' => false, 'data' => null, 'error_messages' => ["Exception: " . $e->getMessage()]];
     }
 }
+/*
+// --- Example Usage for shopify_create_order_transaction ---
+// // Assume $shopifyClient is initialized.
+// if (isset($shopifyClient)) {
+//     $orderIdForTransaction = 'gid://shopify/Order/REPLACE_ORDER_ID'; // Replace with a real Order GID that is unpaid or partially paid
+//     $paymentAmount = '25.50';
+//     $paymentCurrency = 'USD';
+//     $paymentMethod = 'Manual Bank Transfer';
 
+//     // if ($orderIdForTransaction !== 'gid://shopify/Order/REPLACE_ORDER_ID') {
+//     //     $result = shopify_create_order_transaction(
+//     //         $shopifyClient,
+//     //         $orderIdForTransaction,
+//     //         $paymentAmount,
+//     //         $paymentCurrency,
+//     //         $paymentMethod
+//     //     );
+//     //     // print_r($result);
+//     // } else {
+//     //     // print_r("Please replace 'gid://shopify/Order/REPLACE_ORDER_ID' before running this example.\n");
+//     // }
+// } else {
+//     // print_r("Shopify client is not initialized.\n");
+// }
+// // IMPORTANT: Replace 'gid://shopify/Order/REPLACE_ORDER_ID' with an actual Order GID.
+// // This function records a payment, it doesn't process it through a gateway.
+*/
 
 /**
  * Creates a refund for an order.
@@ -556,5 +664,44 @@ function shopify_create_refund(
         return ['success' => false, 'data' => null, 'error_messages' => ["Exception: " . $e->getMessage()]];
     }
 }
+/*
+// --- Example Usage for shopify_create_refund ---
+// // Assume $shopifyClient is initialized.
+// if (isset($shopifyClient)) {
+//     $orderIdToRefund = 'gid://shopify/Order/REPLACE_ORDER_ID'; // Replace with a real Order GID that has been paid
+//     $lineItemIdToRefund = 'gid://shopify/LineItem/REPLACE_LINE_ITEM_ID'; // Replace with a real Line Item GID from that order
+
+//     // $refundLineItems = [
+//     //     [
+//     //         'lineItemId' => $lineItemIdToRefund,
+//     //         'quantity' => 1,
+//     //         'restockType' => 'NO_RESTOCK' // Options: NO_RESTOCK, CANCEL, RETURN
+//     //     ]
+//     // ];
+//     // $refundNote = 'Customer requested refund for one item.';
+//     // $notify = false;
+//     // $shippingRefundAmount = '2.50'; // Optional: refund part of shipping
+//     // $shippingCurrency = 'USD';    // Required if shippingRefundAmount is set
+
+//     // if ($orderIdToRefund !== 'gid://shopify/Order/REPLACE_ORDER_ID' && $lineItemIdToRefund !== 'gid://shopify/LineItem/REPLACE_LINE_ITEM_ID') {
+//     //     $result = shopify_create_refund(
+//     //         $shopifyClient,
+//     //         $orderIdToRefund,
+//     //         $refundLineItems,
+//     //         $refundNote,
+//     //         $notify,
+//     //         $shippingRefundAmount, // Can be null if not refunding shipping
+//     //         $shippingCurrency      // Can be null if not refunding shipping
+//     //     );
+//     //     // print_r($result);
+//     // } else {
+//     //     // print_r("Please replace GID placeholders before running this example.\n");
+//     // }
+// } else {
+//     // print_r("Shopify client is not initialized.\n");
+// }
+// // IMPORTANT: Replace GID placeholders with actual data from your Shopify Development Store.
+// // The order must be in a state where it can be refunded (e.g., paid).
+*/
 
 ?>

@@ -144,6 +144,44 @@ function sendShopifyGraphQLRequest(
         'data' => $responseData['data']
     ];
 }
+/*
+// --- DEMO USAGE for sendShopifyGraphQLRequest ---
+// Note: Replace placeholder values with your actual Shopify store URL, access token, and API version.
+// These examples assume $shopifyStoreUrl, $shopifyAccessToken, and $apiVersion are defined globally.
+
+// $myQuery = 'query { shop { name currencyCode } }';
+// $variables = []; // No variables for this simple query
+
+// $result = sendShopifyGraphQLRequest($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $myQuery, $variables);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "sendShopifyGraphQLRequest SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     // Example of accessing specific data:
+//     if (isset($result['data']['shop']['name'])) {
+//       echo "Shop Name: " . $result['data']['shop']['name'] . "
+";
+//       echo "Currency Code: " . $result['data']['shop']['currencyCode'] . "
+";
+//     }
+//   } else {
+//     echo "sendShopifyGraphQLRequest ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']); // Uncomment for full error details
+//     }
+//   }
+// } else {
+//   echo "sendShopifyGraphQLRequest UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Converts an array of field definitions into a GraphQL query string.
@@ -172,6 +210,7 @@ function formatGqlFieldsForQuery(array $fields): string
     }
     return implode(' ', $formattedFields);
 }
+// No demo block for internal function formatGqlFieldsForQuery
 
 /**
  * Fetches specified fields of a product by its GID.
@@ -208,6 +247,45 @@ function getProduct(
     $variables = ['id' => $productId];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
+/*
+// --- DEMO USAGE for getProduct ---
+// Note: Replace placeholder values with your actual Shopify store URL, access token, API version, and a real Product GID.
+// These examples assume $shopifyStoreUrl, $shopifyAccessToken, and $apiVersion are defined globally.
+
+// $exampleProductId = 'gid://shopify/Product/0123456789123'; // Replace with a real Product GID from your store
+// $customFields = ['id', 'title', 'handle', 'status', 'totalInventory', 'onlineStoreUrl'];
+
+// $result = getProduct($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $exampleProductId, $customFields);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "getProduct SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     if (isset($result['data']['product'])) {
+//       echo "Product Title: " . ($result['data']['product']['title'] ?? 'N/A') . "
+";
+//       echo "Product Status: " . ($result['data']['product']['status'] ?? 'N/A') . "
+";
+//       echo "Product Inventory: " . ($result['data']['product']['totalInventory'] ?? 'N/A') . "
+";
+//     }
+//   } else {
+//     echo "getProduct ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']); // Uncomment for full error details
+//     }
+//   }
+// } else {
+//   echo "getProduct UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Creates a new product.
@@ -246,6 +324,51 @@ function createProduct(
     $variables = ['input' => $productInput];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
+/*
+// --- DEMO USAGE for createProduct ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+
+// $newProductData = [
+//   'title' => 'My Demo Product - ' . date('Y-m-d H:i:s'),
+//   'bodyHtml' => '<p>This is a fantastic product created via API for demo purposes.</p>',
+//   'vendor' => 'Demo Vendor',
+//   'productType' => 'Demo Type',
+//   'status' => 'DRAFT' // Or 'ACTIVE'
+// ];
+
+// $result = createProduct($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $newProductData);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "createProduct SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     if (isset($result['data']['productCreate']['product']['id'])) {
+//       echo "Created Product ID: " . $result['data']['productCreate']['product']['id'] . "
+";
+//       echo "Title: " . $result['data']['productCreate']['product']['title'] . "
+";
+//     } elseif (isset($result['data']['productCreate']['userErrors']) && count($result['data']['productCreate']['userErrors']) > 0) {
+//        echo "createProduct USER ERRORS:
+";
+//        // print_r($result['data']['productCreate']['userErrors']);
+//     }
+//   } else {
+//     echo "createProduct ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "createProduct UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Updates an existing product.
@@ -292,6 +415,51 @@ function updateProduct(
     $variables = ['input' => $productInput];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
+/*
+// --- DEMO USAGE for updateProduct ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+// Important: You need a REAL product GID that exists in your store for this to work.
+
+// $existingProductId = 'gid://shopify/Product/0123456789123'; // Replace with a real Product GID
+// $productUpdateData = [
+//   'id' => $existingProductId,
+//   'title' => 'Updated Product Title - ' . date('Y-m-d H:i:s'),
+//   'tags' => ['demo_update', 'php_client_test']
+// ];
+
+// $result = updateProduct($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $existingProductId, $productUpdateData);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "updateProduct SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     if (isset($result['data']['productUpdate']['product']['id'])) {
+//       echo "Updated Product ID: " . $result['data']['productUpdate']['product']['id'] . "
+";
+//       echo "New Title: " . $result['data']['productUpdate']['product']['title'] . "
+";
+//     } elseif (isset($result['data']['productUpdate']['userErrors']) && count($result['data']['productUpdate']['userErrors']) > 0) {
+//        echo "updateProduct USER ERRORS:
+";
+//        // print_r($result['data']['productUpdate']['userErrors']);
+//     }
+//   } else {
+//     echo "updateProduct ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "updateProduct UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Deletes a product.
@@ -325,6 +493,44 @@ function deleteProduct(
     $variables = ['input' => ['id' => $productId]];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
+/*
+// --- DEMO USAGE for deleteProduct ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+// WARNING: This will permanently delete the product. Use with caution, preferably with a test product GID.
+
+// $productGidToDelete = 'gid://shopify/Product/0123456789123'; // Replace with a GID of a product you want to delete
+
+// $result = deleteProduct($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $productGidToDelete);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "deleteProduct SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     if (isset($result['data']['productDelete']['deletedProductId'])) {
+//       echo "Deleted Product ID: " . $result['data']['productDelete']['deletedProductId'] . "
+";
+//     } elseif (isset($result['data']['productDelete']['userErrors']) && count($result['data']['productDelete']['userErrors']) > 0) {
+//        echo "deleteProduct USER ERRORS:
+";
+//        // print_r($result['data']['productDelete']['userErrors']);
+//     }
+//   } else {
+//     echo "deleteProduct ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "deleteProduct UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Fetches specified fields of an order by its GID.
@@ -365,6 +571,42 @@ function getOrder(
     $variables = ['id' => $orderId];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
+/*
+// --- DEMO USAGE for getOrder ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+
+// $exampleOrderId = 'gid://shopify/Order/0234567890123'; // Replace with a real Order GID from your store
+// $customOrderFields = ['id', 'name', 'processedAt', 'totalPriceSet { shopMoney { amount currencyCode } }', 'customer { email }'];
+
+// $result = getOrder($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $exampleOrderId, $customOrderFields);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "getOrder SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     if (isset($result['data']['order'])) {
+//       echo "Order Name: " . ($result['data']['order']['name'] ?? 'N/A') . "
+";
+//       echo "Order Total: " . ($result['data']['order']['totalPriceSet']['shopMoney']['amount'] ?? 'N/A') . " " . ($result['data']['order']['totalPriceSet']['shopMoney']['currencyCode'] ?? '') . "
+";
+//     }
+//   } else {
+//     echo "getOrder ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "getOrder UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Updates an existing order.
@@ -413,6 +655,51 @@ function updateOrder(
     $variables = ['input' => $orderInput];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
+/*
+// --- DEMO USAGE for updateOrder ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+// Important: You need a REAL order GID that exists in your store for this to work.
+
+// $existingOrderId = 'gid://shopify/Order/0234567890123'; // Replace with a real Order GID
+// $orderUpdateData = [
+//   'id' => $existingOrderId,
+//   'note' => 'Customer called to confirm shipping address. All good. - ' . date('Y-m-d H:i:s'),
+//   'tags' => ['customer_contacted', 'address_verified']
+// ];
+
+// $result = updateOrder($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $existingOrderId, $orderUpdateData);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "updateOrder SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     if (isset($result['data']['orderUpdate']['order']['id'])) {
+//       echo "Updated Order ID: " . $result['data']['orderUpdate']['order']['id'] . "
+";
+//       echo "New Note: " . ($result['data']['orderUpdate']['order']['note'] ?? 'N/A') . "
+";
+//     } elseif (isset($result['data']['orderUpdate']['userErrors']) && count($result['data']['orderUpdate']['userErrors']) > 0) {
+//        echo "updateOrder USER ERRORS:
+";
+//        // print_r($result['data']['orderUpdate']['userErrors']);
+//     }
+//   } else {
+//     echo "updateOrder ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "updateOrder UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Cancels an order.
@@ -465,6 +752,50 @@ function cancelOrder(
     $variables = ['input' => $input];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
+/*
+// --- DEMO USAGE for cancelOrder ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+// WARNING: This will attempt to cancel an order. Use with an order GID that can be cancelled.
+
+// $orderGidToCancel = 'gid://shopify/Order/0234567890123'; // Replace with an order GID that can be cancelled
+// $cancelReason = 'CUSTOMER_REQUEST'; // e.g., CUSTOMER_REQUEST, FRAUD, INVENTORY, OTHER
+// $shouldRestock = true;
+// $cancellationStaffNote = 'Customer requested cancellation due to changed mind.';
+// $notifyCust = true;
+
+// $result = cancelOrder($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $orderGidToCancel, $cancelReason, $shouldRestock, $cancellationStaffNote, $notifyCust);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "cancelOrder SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     if (isset($result['data']['orderCancel']['order']['id'])) {
+//       echo "Cancelled Order ID: " . $result['data']['orderCancel']['order']['id'] . "
+";
+//       echo "New Financial Status: " . ($result['data']['orderCancel']['order']['displayFinancialStatus'] ?? 'N/A') . "
+";
+//     } elseif (isset($result['data']['orderCancel']['userErrors']) && count($result['data']['orderCancel']['userErrors']) > 0) {
+//        echo "cancelOrder USER ERRORS:
+";
+//        // print_r($result['data']['orderCancel']['userErrors']);
+//     }
+//   } else {
+//     echo "cancelOrder ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "cancelOrder UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Fetches specified fields of a customer by its GID.
@@ -505,6 +836,42 @@ function getCustomer(
     $variables = ['id' => $customerId];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
+/*
+// --- DEMO USAGE for getCustomer ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+
+// $exampleCustomerId = 'gid://shopify/Customer/0345678901234'; // Replace with a real Customer GID
+// $customCustomerFields = ['id', 'email', 'firstName', 'lastName', 'numberOfOrders', 'tags'];
+
+// $result = getCustomer($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $exampleCustomerId, $customCustomerFields);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "getCustomer SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     if (isset($result['data']['customer'])) {
+//       echo "Customer Email: " . ($result['data']['customer']['email'] ?? 'N/A') . "
+";
+//       echo "Customer Name: " . ($result['data']['customer']['firstName'] ?? '') . " " . ($result['data']['customer']['lastName'] ?? '') . "
+";
+//     }
+//   } else {
+//     echo "getCustomer ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "getCustomer UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Creates a new customer.
@@ -548,6 +915,52 @@ function createCustomer(
     $variables = ['input' => $customerInput];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
+/*
+// --- DEMO USAGE for createCustomer ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+
+// $newCustomerData = [
+//   'firstName' => 'Demo',
+//   'lastName' => 'User-' . time(),
+//   'email' => 'demo.user.' . time() . '@example.com',
+//   'phone' => '+15550001122',
+//   'acceptsMarketing' => false,
+//   'tags' => ['php_client_demo', 'test_account']
+// ];
+
+// $result = createCustomer($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $newCustomerData);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "createCustomer SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     if (isset($result['data']['customerCreate']['customer']['id'])) {
+//       echo "Created Customer ID: " . $result['data']['customerCreate']['customer']['id'] . "
+";
+//       echo "Email: " . $result['data']['customerCreate']['customer']['email'] . "
+";
+//     } elseif (isset($result['data']['customerCreate']['userErrors']) && count($result['data']['customerCreate']['userErrors']) > 0) {
+//        echo "createCustomer USER ERRORS:
+";
+//        // print_r($result['data']['customerCreate']['userErrors']);
+//     }
+//   } else {
+//     echo "createCustomer ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "createCustomer UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Updates an existing customer.
@@ -599,6 +1012,51 @@ function updateCustomer(
     $variables = ['input' => $customerInput];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
+/*
+// --- DEMO USAGE for updateCustomer ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+// Important: You need a REAL customer GID that exists in your store for this to work.
+
+// $existingCustomerId = 'gid://shopify/Customer/0345678901234'; // Replace with a real Customer GID
+// $customerUpdateData = [
+//   'id' => $existingCustomerId,
+//   'note' => 'Customer preference updated on ' . date('Y-m-d'),
+//   'tags' => ['updated_via_api', 'priority_support']
+// ];
+
+// $result = updateCustomer($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $existingCustomerId, $customerUpdateData);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "updateCustomer SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     if (isset($result['data']['customerUpdate']['customer']['id'])) {
+//       echo "Updated Customer ID: " . $result['data']['customerUpdate']['customer']['id'] . "
+";
+//       echo "New Tags: " . implode(', ', $result['data']['customerUpdate']['customer']['tags'] ?? []) . "
+";
+//     } elseif (isset($result['data']['customerUpdate']['userErrors']) && count($result['data']['customerUpdate']['userErrors']) > 0) {
+//        echo "updateCustomer USER ERRORS:
+";
+//        // print_r($result['data']['customerUpdate']['userErrors']);
+//     }
+//   } else {
+//     echo "updateCustomer ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "updateCustomer UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Deletes a customer.
@@ -632,6 +1090,44 @@ function deleteCustomer(
     $variables = ['input' => ['id' => $customerId]];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
+/*
+// --- DEMO USAGE for deleteCustomer ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+// WARNING: This will permanently delete the customer. Use with caution, preferably with a test customer GID.
+
+// $customerGidToDelete = 'gid://shopify/Customer/0345678901234'; // Replace with a GID of a customer you want to delete
+
+// $result = deleteCustomer($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $customerGidToDelete);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "deleteCustomer SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     if (isset($result['data']['customerDelete']['deletedCustomerId'])) {
+//       echo "Deleted Customer ID: " . $result['data']['customerDelete']['deletedCustomerId'] . "
+";
+//     } elseif (isset($result['data']['customerDelete']['userErrors']) && count($result['data']['customerDelete']['userErrors']) > 0) {
+//        echo "deleteCustomer USER ERRORS:
+";
+//        // print_r($result['data']['customerDelete']['userErrors']);
+//     }
+//   } else {
+//     echo "deleteCustomer ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "deleteCustomer UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Fetches inventory levels for a given InventoryItem GID.
@@ -682,6 +1178,43 @@ function getInventoryLevels(
     $variables = ['inventoryItemId' => $inventoryItemId];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
+/*
+// --- DEMO USAGE for getInventoryLevels ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+
+// $exampleInventoryItemId = 'gid://shopify/InventoryItem/0456789012345'; // Replace with a real InventoryItem GID
+
+// $result = getInventoryLevels($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $exampleInventoryItemId);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "getInventoryLevels SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     if (isset($result['data']['inventoryItem']['inventoryLevels']['edges'])) {
+//       echo "Inventory Levels for Item SKU: " . ($result['data']['inventoryItem']['sku'] ?? 'N/A') . "
+";
+//       foreach ($result['data']['inventoryItem']['inventoryLevels']['edges'] as $edge) {
+//         // echo "Location: " . ($edge['node']['location']['name'] ?? 'N/A') . ", Available: " . ($edge['node']['available'] ?? 'N/A') . "
+";
+//       }
+//     }
+//   } else {
+//     echo "getInventoryLevels ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "getInventoryLevels UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Adjusts the inventory quantity for a specific inventory level GID.
@@ -728,6 +1261,47 @@ function adjustInventoryLevel(
     $variables = ['input' => $input];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
+/*
+// --- DEMO USAGE for adjustInventoryLevel ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+// Important: You need a REAL InventoryLevel GID for this to work.
+
+// $inventoryLevelGid = 'gid://shopify/InventoryLevel/0567890123456?inventory_item_id=0456789012345'; // Replace with a real InventoryLevel GID
+// $quantityChange = -2; // Decrease quantity by 2. Use positive for increase.
+
+// $result = adjustInventoryLevel($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $inventoryLevelGid, $quantityChange);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "adjustInventoryLevel SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     if (isset($result['data']['inventoryAdjustQuantity']['inventoryLevel'])) {
+//       echo "Inventory Level ID: " . $result['data']['inventoryAdjustQuantity']['inventoryLevel']['id'] . "
+";
+//       echo "New Available Quantity: " . ($result['data']['inventoryAdjustQuantity']['inventoryLevel']['available'] ?? 'N/A') . "
+";
+//     } elseif (isset($result['data']['inventoryAdjustQuantity']['userErrors']) && count($result['data']['inventoryAdjustQuantity']['userErrors']) > 0) {
+//        echo "adjustInventoryLevel USER ERRORS:
+";
+//        // print_r($result['data']['inventoryAdjustQuantity']['userErrors']);
+//     }
+//   } else {
+//     echo "adjustInventoryLevel ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "adjustInventoryLevel UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Fetches specified fields of a collection by its GID.
@@ -763,6 +1337,42 @@ function getCollection(
     $variables = ['id' => $collectionId];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
+/*
+// --- DEMO USAGE for getCollection ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+
+// $exampleCollectionId = 'gid://shopify/Collection/0678901234567'; // Replace with a real Collection GID
+// $customCollectionFields = ['id', 'title', 'handle', 'descriptionHtml', 'productsCount'];
+
+// $result = getCollection($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $exampleCollectionId, $customCollectionFields);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "getCollection SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     if (isset($result['data']['collection'])) {
+//       echo "Collection Title: " . ($result['data']['collection']['title'] ?? 'N/A') . "
+";
+//       echo "Products Count: " . ($result['data']['collection']['productsCount'] ?? 'N/A') . "
+";
+//     }
+//   } else {
+//     echo "getCollection ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "getCollection UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Creates a new collection (custom or smart).
@@ -810,6 +1420,69 @@ function createCollection(
     $variables = ['input' => $collectionInput];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
+/*
+// --- DEMO USAGE for createCollection ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+
+// // Example for a Custom Collection:
+// $customCollectionData = [
+//   'title' => 'My Custom Collection - ' . time(),
+//   'descriptionHtml' => 'A collection of hand-picked items for demo.'
+// ];
+// $resultCustom = createCollection($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $customCollectionData);
+// echo "--- Custom Collection Creation Attempt ---
+";
+// if (isset($resultCustom['status'])) {
+//   if ($resultCustom['status'] === 'success' && isset($resultCustom['data']['collectionCreate']['collection'])) {
+//     echo "createCollection (Custom) SUCCESS:
+";
+//     // print_r($resultCustom['data']['collectionCreate']['collection']);
+//     echo "Created Collection ID: " . $resultCustom['data']['collectionCreate']['collection']['id'] . "
+";
+//   } elseif (isset($resultCustom['data']['collectionCreate']['userErrors']) && count($resultCustom['data']['collectionCreate']['userErrors']) > 0) {
+//     echo "createCollection (Custom) USER ERRORS:
+";
+//     // print_r($resultCustom['data']['collectionCreate']['userErrors']);
+//   } else {
+//     echo "createCollection (Custom) ERROR: " . $resultCustom['message'] . "
+";
+//   }
+// } else { echo "createCollection (Custom) UNEXPECTED RESPONSE
+"; }
+
+// // Example for a Smart (Automated) Collection:
+// $smartCollectionData = [
+//   'title' => 'Products Under $50 - ' . time(),
+//   'ruleSet' => [
+//     'appliedDisjunctively' => false,
+//     'rules' => [
+//       [ 'column' => 'VARIANT_PRICE', 'relation' => 'LESS_THAN', 'condition' => '50.00' ],
+//       // [ 'column' => 'TAG', 'relation' => 'EQUALS', 'condition' => 'sale' ] // Example of another rule
+//     ]
+//   ]
+// ];
+// $resultSmart = createCollection($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $smartCollectionData);
+// echo "--- Smart Collection Creation Attempt ---
+";
+// if (isset($resultSmart['status'])) {
+//   if ($resultSmart['status'] === 'success' && isset($resultSmart['data']['collectionCreate']['collection'])) {
+//     echo "createCollection (Smart) SUCCESS:
+";
+//     // print_r($resultSmart['data']['collectionCreate']['collection']);
+//     echo "Created Collection ID: " . $resultSmart['data']['collectionCreate']['collection']['id'] . "
+";
+//   } elseif (isset($resultSmart['data']['collectionCreate']['userErrors']) && count($resultSmart['data']['collectionCreate']['userErrors']) > 0) {
+//     echo "createCollection (Smart) USER ERRORS:
+";
+//     // print_r($resultSmart['data']['collectionCreate']['userErrors']);
+//   } else {
+//     echo "createCollection (Smart) ERROR: " . $resultSmart['message'] . "
+";
+//   }
+// } else { echo "createCollection (Smart) UNEXPECTED RESPONSE
+"; }
+// echo "---\n";
+*/
 
 /**
  * Updates an existing collection.
@@ -865,6 +1538,52 @@ function updateCollection(
     $variables = ['input' => $collectionInput];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
+/*
+// --- DEMO USAGE for updateCollection ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+// Important: You need a REAL collection GID that exists in your store for this to work.
+
+// $existingCollectionId = 'gid://shopify/Collection/0678901234567'; // Replace with a real Collection GID
+// $collectionUpdateData = [
+//   'id' => $existingCollectionId,
+//   'title' => 'Updated Collection Title - ' . date('Y-m-d H:i:s'),
+//   'descriptionHtml' => '<p>This collection description has been updated via API.</p>'
+//   // For smart collections, you might update ruleSet here if needed.
+// ];
+
+// $result = updateCollection($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $existingCollectionId, $collectionUpdateData);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "updateCollection SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     if (isset($result['data']['collectionUpdate']['collection']['id'])) {
+//       echo "Updated Collection ID: " . $result['data']['collectionUpdate']['collection']['id'] . "
+";
+//       echo "New Title: " . ($result['data']['collectionUpdate']['collection']['title'] ?? 'N/A') . "
+";
+//     } elseif (isset($result['data']['collectionUpdate']['userErrors']) && count($result['data']['collectionUpdate']['userErrors']) > 0) {
+//        echo "updateCollection USER ERRORS:
+";
+//        // print_r($result['data']['collectionUpdate']['userErrors']);
+//     }
+//   } else {
+//     echo "updateCollection ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "updateCollection UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Deletes a collection.
@@ -899,6 +1618,44 @@ function deleteCollection(
     $variables = ['input' => $input];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
+/*
+// --- DEMO USAGE for deleteCollection ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+// WARNING: This will permanently delete the collection. Use with caution, preferably with a test collection GID.
+
+// $collectionGidToDelete = 'gid://shopify/Collection/0678901234567'; // Replace with a GID of a collection you want to delete
+
+// $result = deleteCollection($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $collectionGidToDelete);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "deleteCollection SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     if (isset($result['data']['collectionDelete']['deletedCollectionId'])) {
+//       echo "Deleted Collection ID: " . $result['data']['collectionDelete']['deletedCollectionId'] . "
+";
+//     } elseif (isset($result['data']['collectionDelete']['userErrors']) && count($result['data']['collectionDelete']['userErrors']) > 0) {
+//        echo "deleteCollection USER ERRORS:
+";
+//        // print_r($result['data']['collectionDelete']['userErrors']);
+//     }
+//   } else {
+//     echo "deleteCollection ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "deleteCollection UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Adds a product to a custom collection.
@@ -947,6 +1704,45 @@ function addProductToCollection(
     $variables = ['collectionId' => $collectionId, 'productIds' => [$productId]];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
+/*
+// --- DEMO USAGE for addProductToCollection ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+// This operation is for Custom Collections. Smart Collections are managed by rules.
+
+// $targetCollectionId = 'gid://shopify/Collection/0678901234567'; // Replace with a real Custom Collection GID
+// $productToAddGid = 'gid://shopify/Product/0123456789123';   // Replace with a real Product GID
+
+// $result = addProductToCollection($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $targetCollectionId, $productToAddGid);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "addProductToCollection SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     if (isset($result['data']['collectionAddProducts']['collection'])) {
+//       echo "Collection '" . ($result['data']['collectionAddProducts']['collection']['title'] ?? 'N/A') . "' now has " . ($result['data']['collectionAddProducts']['collection']['productCount'] ?? 'N/A') . " products.
+";
+//     } elseif (isset($result['data']['collectionAddProducts']['userErrors']) && count($result['data']['collectionAddProducts']['userErrors']) > 0) {
+//        echo "addProductToCollection USER ERRORS:
+";
+//        // print_r($result['data']['collectionAddProducts']['userErrors']);
+//     }
+//   } else {
+//     echo "addProductToCollection ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "addProductToCollection UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Removes a product from a custom collection.
@@ -995,6 +1791,45 @@ function removeProductFromCollection(
     $variables = ['collectionId' => $collectionId, 'productIds' => [$productId]];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
+/*
+// --- DEMO USAGE for removeProductFromCollection ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+// This operation is for Custom Collections.
+
+// $sourceCollectionId = 'gid://shopify/Collection/0678901234567'; // Replace with a real Custom Collection GID
+// $productToRemoveGid = 'gid://shopify/Product/0123456789123';  // Replace with a real Product GID currently in the collection
+
+// $result = removeProductFromCollection($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $sourceCollectionId, $productToRemoveGid);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "removeProductFromCollection SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     if (isset($result['data']['collectionRemoveProducts']['collection'])) {
+//       echo "Collection '" . ($result['data']['collectionRemoveProducts']['collection']['title'] ?? 'N/A') . "' now has " . ($result['data']['collectionRemoveProducts']['collection']['productCount'] ?? 'N/A') . " products.
+";
+//     } elseif (isset($result['data']['collectionRemoveProducts']['userErrors']) && count($result['data']['collectionRemoveProducts']['userErrors']) > 0) {
+//        echo "removeProductFromCollection USER ERRORS:
+";
+//        // print_r($result['data']['collectionRemoveProducts']['userErrors']);
+//     }
+//   } else {
+//     echo "removeProductFromCollection ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "removeProductFromCollection UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Starts a Shopify bulk query operation.
@@ -1035,6 +1870,68 @@ function startBulkQuery(
     $variables = ['query' => $gqlQuery];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $mutation, $variables);
 }
+/*
+// --- DEMO USAGE for startBulkQuery ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+
+// $myBulkGraphqlQuery = <<<GRAPHQL
+// {
+//   products(first: 100, query: "status:active") {
+//     edges {
+//       node {
+//         id
+//         title
+//         handle
+//         status
+//         variants(first: 5) {
+//           edges {
+//             node {
+//               id
+//               sku
+//               price
+//             }
+//           }
+//         }
+//       }
+//     }
+//   }
+// }
+// GRAPHQL;
+
+// $result = startBulkQuery($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $myBulkGraphqlQuery);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "startBulkQuery SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     if (isset($result['data']['bulkOperationRunQuery']['bulkOperation'])) {
+//       $op = $result['data']['bulkOperationRunQuery']['bulkOperation'];
+//       echo "Bulk Operation ID: " . ($op['id'] ?? 'N/A') . "
+";
+//       echo "Status: " . ($op['status'] ?? 'N/A') . "
+";
+//     } elseif (isset($result['data']['bulkOperationRunQuery']['userErrors']) && count($result['data']['bulkOperationRunQuery']['userErrors']) > 0) {
+//        echo "startBulkQuery USER ERRORS:
+";
+//        // print_r($result['data']['bulkOperationRunQuery']['userErrors']);
+//     }
+//   } else {
+//     echo "startBulkQuery ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "startBulkQuery UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Polls the status of an ongoing bulk operation using its GID.
@@ -1072,6 +1969,50 @@ function getBulkOperationStatus(
     $variables = ['id' => $operationId];
     return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $query, $variables);
 }
+/*
+// --- DEMO USAGE for getBulkOperationStatus ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+// You need a real BulkOperation GID, typically obtained from startBulkQuery.
+
+// $bulkOpId = 'gid://shopify/BulkOperation/0789012345678'; // Replace with a real BulkOperation GID
+
+// $result = getBulkOperationStatus($shopifyStoreUrl, $shopifyAccessToken, $apiVersion, $bulkOpId);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "getBulkOperationStatus SUCCESS:
+";
+//     // print_r($result['data']); // Uncomment to see full data
+//     if (isset($result['data']['node'])) {
+//       $opStatus = $result['data']['node'];
+//       echo "Operation ID: " . ($opStatus['id'] ?? 'N/A') . "
+";
+//       echo "Current Status: " . ($opStatus['status'] ?? 'N/A') . "
+";
+//       if (($opStatus['status'] ?? '') === 'COMPLETED') {
+//         echo "Download URL: " . ($opStatus['url'] ?? 'Not available') . "
+";
+//       } elseif (($opStatus['status'] ?? '') === 'FAILED') {
+//         echo "Error Code: " . ($opStatus['errorCode'] ?? 'N/A') . "
+";
+//       }
+//     }
+//   } else {
+//     echo "getBulkOperationStatus ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "getBulkOperationStatus UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Downloads the JSONL result file from the URL provided by a completed bulk query operation.
@@ -1120,6 +2061,31 @@ function downloadBulkQueryResult(string $fileUrl, string $localFilePath): array
         return ['status' => 'error', 'message' => "Exception during file write: " . $e->getMessage()];
     }
 }
+/*
+// --- DEMO USAGE for downloadBulkQueryResult ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+// You need a real download URL from a COMPLETED bulk operation.
+
+// $resultFileUrl = 'https://shopify-typed-node-api.s3.amazonaws.com/SOME_VERY_LONG_AND_UNIQUE_URL_PATH_TO_FILE.jsonl?X-Amz-Algorithm=...'; // Replace with actual URL
+// $localSavePath = __DIR__ . '/my_downloaded_results.jsonl'; // Ensure this directory is writable
+
+// $result = downloadBulkQueryResult($resultFileUrl, $localSavePath);
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "downloadBulkQueryResult SUCCESS: " . $result['message'] . "
+";
+//   } else {
+//     echo "downloadBulkQueryResult ERROR: " . $result['message'] . "
+";
+//   }
+// } else {
+//   echo "downloadBulkQueryResult UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Exports all products (optionally filtered) to a local JSONL file using Shopify's bulk operations.
@@ -1275,6 +2241,53 @@ function exportAllProducts(
         'details' => ['bulkOperationId' => $bulkOperationId, 'lastStatus' => $operationStatus ?? 'UNKNOWN']
     ];
 }
+/*
+// --- DEMO USAGE for exportAllProducts ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+
+// $productsExportPath = __DIR__ . '/all_my_products_export.jsonl'; // Ensure this directory is writable
+// $productExportFilter = "status:active AND published_status:published"; // Example filter
+// $productExportFields = ['id', 'title', 'handle', 'vendor', 'status', 'tags'];
+
+// $result = exportAllProducts(
+//   $shopifyStoreUrl,
+//   $shopifyAccessToken,
+//   $apiVersion,
+//   $productsExportPath,
+//   $productExportFilter,
+//   $productExportFields,
+//   10, // polling interval: 10 seconds
+//   30  // max attempts: 30 (5 minutes total)
+// );
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "exportAllProducts SUCCESS: " . $result['message'] . "
+";
+//     if (isset($result['downloadPath'])) {
+//       echo "Exported file: " . $result['downloadPath'] . "
+";
+//       echo "File size: " . ($result['fileSize'] ?? 'N/A') . " bytes
+";
+//     }
+//     echo "Bulk Operation ID: " . ($result['bulkOperationId'] ?? 'N/A') . "
+";
+//   } else {
+//     echo "exportAllProducts ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "exportAllProducts UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Exports all customers (optionally filtered) to a local JSONL file using Shopify's bulk operations.
@@ -1424,6 +2437,53 @@ function exportAllCustomers(
         'details' => ['bulkOperationId' => $bulkOperationId, 'lastStatus' => $operationStatus ?? 'UNKNOWN']
     ];
 }
+/*
+// --- DEMO USAGE for exportAllCustomers ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+
+// $customersExportPath = __DIR__ . '/all_my_customers_export.jsonl'; // Ensure this directory is writable
+// $customerExportFilter = "email_marketing_consent: { consent_state: SUBSCRIBED }"; // Example: customers who accept marketing
+// $customerExportFields = ['id', 'firstName', 'lastName', 'email', 'phone', 'acceptsMarketing', 'tags', 'ordersCount'];
+
+// $result = exportAllCustomers(
+//   $shopifyStoreUrl,
+//   $shopifyAccessToken,
+//   $apiVersion,
+//   $customersExportPath,
+//   $customerExportFilter,
+//   $customerExportFields,
+//   8, // polling interval
+//   40  // max attempts
+// );
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "exportAllCustomers SUCCESS: " . $result['message'] . "
+";
+//     if (isset($result['downloadPath'])) {
+//       echo "Exported file: " . $result['downloadPath'] . "
+";
+//       echo "File size: " . ($result['fileSize'] ?? 'N/A') . " bytes
+";
+//     }
+//     echo "Bulk Operation ID: " . ($result['bulkOperationId'] ?? 'N/A') . "
+";
+//   } else {
+//     echo "exportAllCustomers ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "exportAllCustomers UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 /**
  * Exports all orders (optionally filtered) to a local JSONL file using Shopify's bulk operations.
@@ -1582,5 +2642,52 @@ function exportAllOrders(
         'details' => ['bulkOperationId' => $bulkOperationId, 'lastStatus' => $operationStatus ?? 'UNKNOWN']
     ];
 }
+/*
+// --- DEMO USAGE for exportAllOrders ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined.
+
+// $ordersExportPath = __DIR__ . '/all_my_orders_export.jsonl'; // Ensure this directory is writable
+// $orderExportFilter = "created_at:>=2023-01-01 AND financial_status:paid"; // Example filter
+// $orderExportFields = ['id', 'name', 'email', 'processedAt', 'totalPriceSet { shopMoney { amount currencyCode } }', 'customer { id email }', 'lineItems(first:3){edges{node{title quantity}}}'];
+
+// $result = exportAllOrders(
+//   $shopifyStoreUrl,
+//   $shopifyAccessToken,
+//   $apiVersion,
+//   $ordersExportPath,
+//   $orderExportFilter,
+//   $orderExportFields,
+//   15, // polling interval: 15 seconds
+//   40  // max attempts: 40 (10 minutes total)
+// );
+
+// if (isset($result['status'])) {
+//   if ($result['status'] === 'success') {
+//     echo "exportAllOrders SUCCESS: " . $result['message'] . "
+";
+//     if (isset($result['downloadPath'])) {
+//       echo "Exported file: " . $result['downloadPath'] . "
+";
+//       echo "File size: " . ($result['fileSize'] ?? 'N/A') . " bytes
+";
+//     }
+//     echo "Bulk Operation ID: " . ($result['bulkOperationId'] ?? 'N/A') . "
+";
+//   } else {
+//     echo "exportAllOrders ERROR: " . $result['message'] . "
+";
+//     if (!empty($result['details'])) {
+//       // echo "Details: 
+";
+//       // print_r($result['details']);
+//     }
+//   }
+// } else {
+//   echo "exportAllOrders UNEXPECTED RESPONSE:
+";
+//   // print_r($result);
+// }
+// echo "---\n";
+*/
 
 ?>

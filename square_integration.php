@@ -197,6 +197,52 @@ function square_create_payment(
         return ['success' => false, 'data' => null, 'error_messages' => ["General Exception: " . $e->getMessage()]];
     }
 }
+/*
+// --- Example Usage for square_create_payment ---
+// // 1. Initialize Square Client (ensure this is done once, typically outside the direct example)
+// // require_once __DIR__ . '/vendor/autoload.php'; // If not already included
+// // use Square\SquareClient;
+// // use Square\Environment;
+// // $sandboxAccessToken = 'YOUR_SANDBOX_ACCESS_TOKEN_REPLACE_ME';
+// // $squareClient = null;
+// // try {
+// //     $squareClient = new SquareClient([
+// //         'accessToken' => $sandboxAccessToken,
+// //         'environment' => Environment::SANDBOX,
+// //     ]);
+// // } catch (Exception $e) {
+// //     // Handle client initialization error
+// //     // print_r("Error initializing Square client: " . $e->getMessage());
+// //     // exit;
+// // }
+
+// if (isset($squareClient)) { // Check if $squareClient is initialized
+//     $sourceId = 'cnon:card-nonce-ok'; // Square's generic test nonce for success
+//     $amount = 100; // 1.00 USD in cents
+//     $currency = 'USD';
+//     $idempotencyKey = 'square-payment-' . uniqid();
+//     $sandboxLocationId = 'YOUR_SANDBOX_LOCATION_ID_REPLACE_ME'; // Replace with your actual Sandbox Location ID
+
+//     $result = square_create_payment(
+//         $squareClient,
+//         $sourceId,
+//         $amount,
+//         $currency,
+//         $idempotencyKey,
+//         $sandboxLocationId, // Location ID is often required
+//         'OPTIONAL_ORDER_ID_REPLACE_ME', // Optional order ID
+//         'Test payment for order #123', // Optional note
+//         'OPTIONAL_CUSTOMER_ID_REPLACE_ME', // Optional customer ID
+//         null // Optional appFeeAmount (e.g., 10 for 10 cents)
+//     );
+//     // print_r($result);
+// } else {
+//     // print_r("Square client is not initialized. Please check your setup.\n");
+// }
+// // IMPORTANT: For actual testing, replace all placeholders like 'YOUR_SANDBOX_ACCESS_TOKEN_REPLACE_ME',
+// // 'YOUR_SANDBOX_LOCATION_ID_REPLACE_ME', 'OPTIONAL_ORDER_ID_REPLACE_ME', etc.,
+// // with valid data from your Square Sandbox. The SquareClient must be properly initialized.
+*/
 
 /**
  * Retrieves details for a specific payment.
@@ -238,6 +284,24 @@ function square_get_payment(SquareClient $squareClient, string $paymentId): arra
         return ['success' => false, 'data' => null, 'error_messages' => ["General Exception: " . $e->getMessage()]];
     }
 }
+/*
+// --- Example Usage for square_get_payment ---
+// // Assume $squareClient is already initialized as shown in square_create_payment example.
+// if (isset($squareClient)) {
+//     $paymentIdToGet = 'PAYMENT_ID_FROM_PREVIOUS_CALL_REPLACE_ME'; // Replace with a real payment ID from a previous successful call
+
+//     if ($paymentIdToGet !== 'PAYMENT_ID_FROM_PREVIOUS_CALL_REPLACE_ME') {
+//         $result = square_get_payment($squareClient, $paymentIdToGet);
+//         // print_r($result);
+//     } else {
+//         // print_r("Please provide a valid payment ID to test square_get_payment.\n");
+//     }
+// } else {
+//     // print_r("Square client is not initialized.\n");
+// }
+// // IMPORTANT: Replace 'PAYMENT_ID_FROM_PREVIOUS_CALL_REPLACE_ME' with an actual payment ID
+// // from your Square Sandbox. Ensure SquareClient is initialized.
+*/
 
 /**
  * Creates a refund for a previously processed payment.
@@ -319,6 +383,41 @@ function square_create_refund(
         return ['success' => false, 'data' => null, 'error_messages' => ["General Exception: " . $e->getMessage()]];
     }
 }
+/*
+// --- Example Usage for square_create_refund ---
+// // Assume $squareClient is already initialized.
+// if (isset($squareClient)) {
+//     $paymentIdToRefund = 'PAYMENT_ID_TO_REFUND_REPLACE_ME'; // Replace with a real, refundable payment ID
+//     $refundAmount = 50; // 0.50 USD in cents (for partial refund)
+//     $refundCurrency = 'USD';
+//     $refundIdempotencyKey = 'square-refund-' . uniqid();
+//     $refundReason = 'Customer request for partial refund.';
+//     // $sandboxLocationId = 'YOUR_SANDBOX_LOCATION_ID_REPLACE_ME'; // Optional, as it's not directly on the request body
+
+//     if ($paymentIdToRefund !== 'PAYMENT_ID_TO_REFUND_REPLACE_ME') {
+//         $result = square_create_refund(
+//             $squareClient,
+//             $paymentIdToRefund,
+//             $refundAmount,
+//             $refundCurrency,
+//             $refundIdempotencyKey,
+//             $refundReason
+//             // $sandboxLocationId // Not directly used in SDK call body for this request
+//         );
+//         // print_r($result);
+
+//         // To test a full refund, set $refundAmount to the original payment amount,
+//         // or if the API supports it, some libraries might allow omitting amount for full refund
+//         // (this wrapper requires amount, so you'd pass the full original amount).
+//     } else {
+//         // print_r("Please provide a valid payment ID to test square_create_refund.\n");
+//     }
+// } else {
+//     // print_r("Square client is not initialized.\n");
+// }
+// // IMPORTANT: Replace 'PAYMENT_ID_TO_REFUND_REPLACE_ME' with an actual refundable payment ID.
+// // Ensure SquareClient is initialized.
+*/
 
 /**
  * Creates an order using the Square Orders API.
@@ -414,5 +513,37 @@ function square_create_order(
         return ['success' => false, 'data' => null, 'error_messages' => ["General Exception: " . $e->getMessage()]];
     }
 }
+/*
+// --- Example Usage for square_create_order ---
+// // Assume $squareClient is already initialized.
+// if (isset($squareClient)) {
+//     $sandboxLocationId = 'YOUR_SANDBOX_LOCATION_ID_REPLACE_ME'; // Replace with your actual Sandbox Location ID
+//     $lineItemsForOrder = [
+//         ['name' => 'Mug', 'quantity' => '2', 'amount' => 1200, 'currency' => 'USD'], // 12.00 USD each
+//         ['name' => 'Tea Cozy', 'quantity' => '1', 'amount' => 2500, 'currency' => 'USD'] // 25.00 USD
+//     ];
+//     $orderIdempotencyKey = 'square-order-' . uniqid();
+
+//     if ($sandboxLocationId !== 'YOUR_SANDBOX_LOCATION_ID_REPLACE_ME') {
+//         $result = square_create_order(
+//             $squareClient,
+//             $sandboxLocationId,
+//             $lineItemsForOrder,
+//             $orderIdempotencyKey,
+//             'REF-001', // Optional referenceId
+//             'CUSTOMER_ID_REPLACE_ME', // Optional customerId
+//             'Order notes: Handle with care.' // Optional note
+//         );
+//         // print_r($result);
+//     } else {
+//         // print_r("Please provide a valid Sandbox Location ID to test square_create_order.\n");
+//     }
+// } else {
+//     // print_r("Square client is not initialized.\n");
+// }
+// // IMPORTANT: Replace placeholders like 'YOUR_SANDBOX_LOCATION_ID_REPLACE_ME' and
+// // 'CUSTOMER_ID_REPLACE_ME' with actual valid data from your Square Sandbox.
+// // Ensure SquareClient is initialized.
+*/
 
 ?>

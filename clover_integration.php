@@ -191,7 +191,38 @@ function _clover_make_api_request(
         'errorMessage' => $errorMessage,
     ];
 }
+/*
+// --- Example Usage for _clover_make_api_request (Illustrative) ---
+// Note: This is a helper function and typically not called directly from user code.
+// These examples are for understanding its direct usage if needed for debugging or custom calls.
+// Ensure placeholders are replaced with your actual Clover Sandbox API key and a valid endpoint.
 
+// $apiSecretKey = 'YOUR_CLOVER_API_SECRET_KEY_REPLACE_ME';
+// $cloverApiBaseUrl = CLOVER_API_BASE_URL_PLACEHOLDER; // Or your specific sandbox URL
+
+// Example 1: GET request (e.g., to list charges, if you have a charge ID)
+// $exampleChargeId = 'CHARGE_ID_REPLACE_ME';
+// $getRequestUrl = $cloverApiBaseUrl . '/v1/charges/' . $exampleChargeId;
+// $getResult = _clover_make_api_request($apiSecretKey, 'GET', $getRequestUrl);
+// echo "GET Request Result:\n";
+// print_r($getResult);
+
+// Example 2: POST request (e.g., creating a simple charge - requires a valid source token)
+// $postRequestUrl = $cloverApiBaseUrl . '/v1/charges';
+// $postData = [
+//     'amount' => 100, // 1.00 USD in cents
+//     'currency' => 'USD',
+//     'source' => 'clv_test_SOURCE_TOKEN_REPLACE_ME' // Replace with a valid test token
+// ];
+// $idempotencyKeyPost = 'example-post-key-' . uniqid();
+// $postResult = _clover_make_api_request($apiSecretKey, 'POST', $postRequestUrl, $postData, $idempotencyKeyPost);
+// echo "\nPOST Request Result:\n";
+// print_r($postResult);
+
+// IMPORTANT: For actual testing, replace all placeholders like 'YOUR_CLOVER_API_SECRET_KEY_REPLACE_ME',
+// 'CHARGE_ID_REPLACE_ME', and 'clv_test_SOURCE_TOKEN_REPLACE_ME' with valid data from your Clover Sandbox.
+// The source token must be a real test token obtained from Clover's test card sources.
+*/
 
 /**
  * Creates a payment (charge) using the Clover API.
@@ -296,6 +327,34 @@ function clover_create_payment(
         'errorMessage' => null,
     ];
 }
+/*
+// --- Example Usage for clover_create_payment ---
+// $apiSecretKey = 'YOUR_CLOVER_API_SECRET_KEY_REPLACE_ME';
+// $apiBaseUrl = CLOVER_API_BASE_URL_PLACEHOLDER; // Or your specific sandbox URL
+// $idempotencyKeyPayment = 'clover-payment-' . uniqid(); // Example idempotency key
+
+// $customer = [
+//     'email' => 'customer@example.com',
+//     'name' => 'John Doe'
+// ];
+// $meta = ['invoice_id' => 'INV-12345'];
+
+// $result = clover_create_payment(
+//     $apiSecretKey,
+//     1500, // 15.00 USD in cents
+//     'USD',
+//     'clv_test_SOURCE_TOKEN_REPLACE_ME', // Replace with a valid Clover test source token
+//     $idempotencyKeyPayment,
+//     'ORDER_ID_REPLACE_ME', // Optional: associated order ID
+//     'Payment for services rendered', // Optional: description
+//     $customer, // Optional: customer details
+//     $meta, // Optional: metadata
+//     $apiBaseUrl
+// );
+// print_r($result);
+// IMPORTANT: Replace placeholders like 'YOUR_CLOVER_API_SECRET_KEY_REPLACE_ME', 'clv_test_SOURCE_TOKEN_REPLACE_ME',
+// and 'ORDER_ID_REPLACE_ME' with actual valid data from your Clover Sandbox for testing.
+*/
 
 /**
  * Retrieves the status of a specific payment from the Clover API.
@@ -342,6 +401,21 @@ function clover_get_payment_status(
         'errorMessage' => null,
     ];
 }
+/*
+// --- Example Usage for clover_get_payment_status ---
+// $apiSecretKey = 'YOUR_CLOVER_API_SECRET_KEY_REPLACE_ME';
+// $apiBaseUrl = CLOVER_API_BASE_URL_PLACEHOLDER; // Or your specific sandbox URL
+// $paymentIdToGet = 'PAYMENT_ID_FROM_PREVIOUS_CALL_REPLACE_ME'; // Replace with a real payment ID
+
+// $result = clover_get_payment_status(
+//     $apiSecretKey,
+//     $paymentIdToGet,
+//     $apiBaseUrl
+// );
+// print_r($result);
+// IMPORTANT: Replace placeholders like 'YOUR_CLOVER_API_SECRET_KEY_REPLACE_ME' and
+// 'PAYMENT_ID_FROM_PREVIOUS_CALL_REPLACE_ME' with actual valid data from your Clover Sandbox.
+*/
 
 /**
  * Refunds a payment using the Clover API.
@@ -426,6 +500,38 @@ function clover_refund_payment(
         'errorMessage' => null,
     ];
 }
+/*
+// --- Example Usage for clover_refund_payment ---
+// $apiSecretKey = 'YOUR_CLOVER_API_SECRET_KEY_REPLACE_ME';
+// $apiBaseUrl = CLOVER_API_BASE_URL_PLACEHOLDER; // Or your specific sandbox URL
+// $paymentIdToRefund = 'PAYMENT_ID_FROM_PREVIOUS_CALL_REPLACE_ME'; // Replace with a refundable payment ID
+// $idempotencyKeyRefund = 'clover-refund-' . uniqid();
+
+// Example 1: Full refund
+// $resultFullRefund = clover_refund_payment(
+//     $apiSecretKey,
+//     $paymentIdToRefund,
+//     null, // Amount null for full refund
+//     'Customer request - full refund', // Optional reason
+//     $idempotencyKeyRefund . '-full',
+//     $apiBaseUrl
+// );
+// print_r($resultFullRefund);
+
+// Example 2: Partial refund (ensure paymentIdToRefund is still partially refundable)
+// $resultPartialRefund = clover_refund_payment(
+//     $apiSecretKey,
+//     $paymentIdToRefund,
+//     500, // Refund 5.00 USD in cents
+//     'Customer request - partial refund', // Optional reason
+//     $idempotencyKeyRefund . '-partial',
+//     $apiBaseUrl
+// );
+// print_r($resultPartialRefund);
+// IMPORTANT: Replace placeholders like 'YOUR_CLOVER_API_SECRET_KEY_REPLACE_ME' and
+// 'PAYMENT_ID_FROM_PREVIOUS_CALL_REPLACE_ME' with actual valid data from your Clover Sandbox.
+// Ensure the payment ID is for a charge that can be refunded.
+*/
 
 /**
  * Creates an order/invoice in Clover.
@@ -503,7 +609,7 @@ function clover_create_order(
     }
 
     if ($customerDetails !== null) {
-        $payload['customer'] = $customerDetails;
+        $payload['customer'] = $customerDetails; // Structure depends on Clover API spec for orders
     }
 
     if ($externalReferenceId !== null) {
@@ -543,5 +649,36 @@ function clover_create_order(
         'data' => $response['body'],
     ];
 }
+/*
+// --- Example Usage for clover_create_order ---
+// $apiSecretKey = 'YOUR_CLOVER_API_SECRET_KEY_REPLACE_ME';
+// $apiBaseUrl = CLOVER_API_BASE_URL_PLACEHOLDER; // Or your specific sandbox URL
+// $idempotencyKeyOrder = 'clover-order-' . uniqid();
+
+// $lineItemsForOrder = [
+//     ['name' => 'Widget A', 'price' => 1000, 'quantity' => 2], // 10.00 USD each
+//     ['name' => 'Service B', 'price' => 2500, 'quantity' => 1]  // 25.00 USD
+// ];
+
+// $customerForOrder = [
+//     'email' => 'newcustomer@example.com',
+//     'name' => 'Jane Smith',
+//     // Add other customer fields as per Clover API documentation for orders
+// ];
+
+// $result = clover_create_order(
+//     $apiSecretKey,
+//     $apiBaseUrl,
+//     $lineItemsForOrder,
+//     'USD',
+//     $customerForOrder, // Optional
+//     'EXT-ORD-001', // Optional external reference ID
+//     $idempotencyKeyOrder, // Optional idempotency key
+//     'open' // Optional order state, defaults to 'open'
+// );
+// print_r($result);
+// IMPORTANT: Replace 'YOUR_CLOVER_API_SECRET_KEY_REPLACE_ME' with your actual Clover Sandbox API key.
+// Ensure the structure of $customerForOrder and $lineItemsForOrder matches Clover's expectations for the Orders API.
+*/
 
 ?>

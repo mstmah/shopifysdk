@@ -5,6 +5,15 @@
 This script provides a collection of functions for interacting with various Meta APIs.
 When integrating these into a production application, consider the following:
 
+    Note: The API version (e.g., 'v19.0') is used throughout this file. 
+    In a production system, consider defining this as a global constant 
+    (e.g., define('META_API_VERSION', 'v19.0');) in a central configuration file 
+    for easier updates.
+*/
+/*
+This script provides a collection of functions for interacting with various Meta APIs.
+When integrating these into a production application, consider the following:
+
 1.  Error Handling:
     *   Always check the return values of these functions. They are designed to return an array
       which will contain an ['error'] key if an API error occurred or if the function
@@ -24,7 +33,7 @@ When integrating these into a production application, consider the following:
     *   Page Access Tokens obtained via User Tokens can expire if the authorizing User Token
       expires or if the user revokes the permissions granted to your app. Regularly check
       token validity and implement re-authorization flows.
-    *   App Access Tokens (typically `YOUR_APP_ID|YOUR_APP_SECRET`) are powerful and should be
+    *   App Access Tokens (typically `YOUR_APP_ID_HERE|YOUR_APP_SECRET_HERE`) are powerful and should be
       used with extreme caution, only from secure server environments.
 
 3.  API Permissions (Scopes):
@@ -103,6 +112,11 @@ When integrating these into a production application, consider the following:
 
 // App ID and App Secret can be found in the Meta Developer Portal:
 // https://developers.facebook.com/apps/
+// Define a global constant for the API version for consistency and easy updates.
+if (!defined('META_API_VERSION')) {
+    define('META_API_VERSION', 'v19.0'); 
+}
+
 
 /**
  * Generates the URL to redirect the user to for authorization.
@@ -121,11 +135,11 @@ function getOAuthUrl(string $appId, string $redirectUri, array $scope): string
         'response_type' => 'code',
         'state' => bin2hex(random_bytes(16)) // For CSRF protection
     ];
-    return 'https://www.facebook.com/v19.0/dialog/oauth?' . http_build_query($params);
+    return 'https://www.facebook.com/' . META_API_VERSION . '/dialog/oauth?' . http_build_query($params);
 }
 /*
 // Example for getOAuthUrl:
-// $appId = 'YOUR_APP_ID';
+// $appId = 'YOUR_APP_ID_HERE';
 // $redirectUri = 'https://yourdomain.com/callback.php';
 // $scopes = ['public_profile', 'email', 'pages_read_engagement'];
 // $authUrl = getOAuthUrl($appId, $redirectUri, $scopes);
@@ -143,7 +157,7 @@ function getOAuthUrl(string $appId, string $redirectUri, array $scope): string
  */
 function getAccessToken(string $appId, string $appSecret, string $redirectUri, string $code): array
 {
-    $url = 'https://graph.facebook.com/v19.0/oauth/access_token';
+    $url = 'https://graph.facebook.com/' . META_API_VERSION . '/oauth/access_token';
     $params = [
         'client_id' => $appId,
         'client_secret' => $appSecret,
@@ -158,6 +172,10 @@ function getAccessToken(string $appId, string $appSecret, string $redirectUri, s
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::getAccessToken - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message']];
@@ -171,8 +189,8 @@ function getAccessToken(string $appId, string $appSecret, string $redirectUri, s
 }
 /*
 // Example for getAccessToken (typically used in your redirect URI script):
-// $appId = 'YOUR_APP_ID';
-// $appSecret = 'YOUR_APP_SECRET';
+// $appId = 'YOUR_APP_ID_HERE'; 
+// $appSecret = 'YOUR_APP_SECRET_HERE'; 
 // $redirectUri = 'https://yourdomain.com/callback.php';
 // $authorizationCode = $_GET['code'] ?? null;
 // if ($authorizationCode) {
@@ -195,7 +213,7 @@ function getAccessToken(string $appId, string $appSecret, string $redirectUri, s
  */
 function getLongLivedUserAccessToken(string $appId, string $appSecret, string $shortLivedAccessToken): array
 {
-    $url = 'https://graph.facebook.com/v19.0/oauth/access_token';
+    $url = 'https://graph.facebook.com/' . META_API_VERSION . '/oauth/access_token';
     $params = [
         'grant_type' => 'fb_exchange_token',
         'client_id' => $appId,
@@ -210,6 +228,10 @@ function getLongLivedUserAccessToken(string $appId, string $appSecret, string $s
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::getLongLivedUserAccessToken - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message']];
@@ -223,9 +245,9 @@ function getLongLivedUserAccessToken(string $appId, string $appSecret, string $s
 }
 /*
 // Example for getLongLivedUserAccessToken:
-// $appId = 'YOUR_APP_ID';
-// $appSecret = 'YOUR_APP_SECRET';
-// $shortLivedToken = 'USER_SHORT_LIVED_ACCESS_TOKEN'; // From getAccessToken
+// $appId = 'YOUR_APP_ID_HERE'; 
+// $appSecret = 'YOUR_APP_SECRET_HERE'; 
+// $shortLivedToken = 'USER_SHORT_LIVED_ACCESS_TOKEN_HERE'; // Placeholder
 // $longLivedTokenData = getLongLivedUserAccessToken($appId, $appSecret, $shortLivedToken);
 // if (isset($longLivedTokenData['access_token'])) {
 //     echo "Long-Lived Access Token: " . $longLivedTokenData['access_token'];
@@ -243,7 +265,7 @@ function getLongLivedUserAccessToken(string $appId, string $appSecret, string $s
  */
 function getPageAccessToken(string $userAccessToken, string $pageId): array
 {
-    $url = "https://graph.facebook.com/v19.0/{$pageId}";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$pageId}";
     $params = [
         'fields' => 'access_token',
         'access_token' => $userAccessToken
@@ -256,6 +278,10 @@ function getPageAccessToken(string $userAccessToken, string $pageId): array
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::getPageAccessToken - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message']];
@@ -268,8 +294,8 @@ function getPageAccessToken(string $userAccessToken, string $pageId): array
 }
 /*
 // Example for getPageAccessToken:
-// $userAccessToken = 'LONG_LIVED_USER_ACCESS_TOKEN';
-// $pageId = 'YOUR_FACEBOOK_PAGE_ID';
+// $userAccessToken = 'YOUR_LONG_LIVED_USER_ACCESS_TOKEN_HERE'; // Placeholder
+// $pageId = 'YOUR_FACEBOOK_PAGE_ID_HERE'; // Placeholder
 // $pageAccessTokenData = getPageAccessToken($userAccessToken, $pageId);
 // if (isset($pageAccessTokenData['page_access_token'])) {
 //     echo "Page Access Token: " . $pageAccessTokenData['page_access_token'];
@@ -291,7 +317,7 @@ function getPageAccessToken(string $userAccessToken, string $pageId): array
  */
 function getUserProfile(string $accessToken, string $userId = 'me', array $fields = ['id', 'name', 'email']): array
 {
-    $url = "https://graph.facebook.com/v19.0/{$userId}";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$userId}";
     $params = [
         'fields' => implode(',', $fields),
         'access_token' => $accessToken
@@ -304,6 +330,10 @@ function getUserProfile(string $accessToken, string $userId = 'me', array $field
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::getUserProfile - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message']];
@@ -312,7 +342,7 @@ function getUserProfile(string $accessToken, string $userId = 'me', array $field
 }
 /*
 // Example for getUserProfile:
-// $userToken = 'VALID_USER_ACCESS_TOKEN';
+// $userToken = 'YOUR_USER_ACCESS_TOKEN_HERE'; // Placeholder
 // $profile = getUserProfile($userToken, 'me', ['id', 'name', 'picture']);
 // print_r($profile);
 */
@@ -327,7 +357,7 @@ function getUserProfile(string $accessToken, string $userId = 'me', array $field
  */
 function getUserFeed(string $accessToken, string $userId = 'me', int $limit = 10): array
 {
-    $url = "https://graph.facebook.com/v19.0/{$userId}/feed";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$userId}/feed";
     $params = [
         'limit' => $limit,
         'access_token' => $accessToken
@@ -340,6 +370,10 @@ function getUserFeed(string $accessToken, string $userId = 'me', int $limit = 10
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::getUserFeed - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message']];
@@ -348,7 +382,7 @@ function getUserFeed(string $accessToken, string $userId = 'me', int $limit = 10
 }
 /*
 // Example for getUserFeed:
-// $userToken = 'VALID_USER_ACCESS_TOKEN_WITH_USER_POSTS_PERMISSION';
+// $userToken = 'YOUR_USER_ACCESS_TOKEN_WITH_USER_POSTS_PERMISSION_HERE'; // Placeholder
 // $feed = getUserFeed($userToken, 'me', 5);
 // print_r($feed);
 */
@@ -372,7 +406,7 @@ function getPageInfo(string $accessToken, string $pageId, array $fields = ['id',
         $fields = array_unique($fields); // Ensure 'fan_count' is not duplicated if already present
     }
 
-    $url = "https://graph.facebook.com/v19.0/{$pageId}";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$pageId}";
     $params = [
         'fields' => implode(',', $fields),
         'access_token' => $accessToken
@@ -385,6 +419,10 @@ function getPageInfo(string $accessToken, string $pageId, array $fields = ['id',
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::getPageInfo - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message']];
@@ -393,8 +431,8 @@ function getPageInfo(string $accessToken, string $pageId, array $fields = ['id',
 }
 /*
 // Example for getPageInfo:
-// $pageAccessToken = 'VALID_PAGE_ACCESS_TOKEN';
-// $pageId = 'YOUR_FACEBOOK_PAGE_ID';
+// $pageAccessToken = 'YOUR_PAGE_ACCESS_TOKEN_HERE'; // Placeholder
+// $pageId = 'YOUR_FACEBOOK_PAGE_ID_HERE'; // Placeholder
 // $info = getPageInfo($pageAccessToken, $pageId, ['id', 'name', 'fan_count', 'link']);
 // print_r($info);
 */
@@ -409,7 +447,7 @@ function getPageInfo(string $accessToken, string $pageId, array $fields = ['id',
  */
 function getPageFeed(string $accessToken, string $pageId, int $limit = 10): array
 {
-    $url = "https://graph.facebook.com/v19.0/{$pageId}/feed";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$pageId}/feed";
     $params = [
         'limit' => $limit,
         'access_token' => $accessToken
@@ -422,6 +460,10 @@ function getPageFeed(string $accessToken, string $pageId, int $limit = 10): arra
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::getPageFeed - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message']];
@@ -430,8 +472,8 @@ function getPageFeed(string $accessToken, string $pageId, int $limit = 10): arra
 }
 /*
 // Example for getPageFeed:
-// $pageAccessToken = 'VALID_PAGE_ACCESS_TOKEN';
-// $pageId = 'YOUR_FACEBOOK_PAGE_ID';
+// $pageAccessToken = 'YOUR_PAGE_ACCESS_TOKEN_HERE'; // Placeholder
+// $pageId = 'YOUR_FACEBOOK_PAGE_ID_HERE'; // Placeholder
 // $pageFeed = getPageFeed($pageAccessToken, $pageId, 5);
 // print_r($pageFeed);
 */
@@ -447,7 +489,7 @@ function getPageFeed(string $accessToken, string $pageId, int $limit = 10): arra
  */
 function postToPage(string $accessToken, string $pageId, string $message, ?string $link = null): array
 {
-    $url = "https://graph.facebook.com/v19.0/{$pageId}/feed";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$pageId}/feed";
     $params = [
         'message' => $message,
         'access_token' => $accessToken
@@ -465,6 +507,10 @@ function postToPage(string $accessToken, string $pageId, string $message, ?strin
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::postToPage - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message']];
@@ -473,8 +519,8 @@ function postToPage(string $accessToken, string $pageId, string $message, ?strin
 }
 /*
 // Example for postToPage:
-// $pageAccessToken = 'VALID_PAGE_ACCESS_TOKEN_WITH_PAGES_MANAGE_POSTS';
-// $pageId = 'YOUR_FACEBOOK_PAGE_ID';
+// $pageAccessToken = 'YOUR_PAGE_ACCESS_TOKEN_WITH_PAGES_MANAGE_POSTS_HERE'; // Placeholder
+// $pageId = 'YOUR_FACEBOOK_PAGE_ID_HERE'; // Placeholder
 // $postResult = postToPage($pageAccessToken, $pageId, "Hello World from PHP! Time: " . time(), "https://developers.facebook.com");
 // print_r($postResult);
 */
@@ -497,7 +543,7 @@ function uploadPhotoToPage(string $accessToken, string $pageId, string $photoPat
         return ['error' => "Photo file is not readable at path: {$photoPath}"];
     }
 
-    $url = "https://graph.facebook.com/v19.0/{$pageId}/photos";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$pageId}/photos";
     $params = [
         'caption' => $caption,
         'access_token' => $accessToken,
@@ -514,6 +560,10 @@ function uploadPhotoToPage(string $accessToken, string $pageId, string $photoPat
     curl_close($ch);
     
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE && $httpCode < 400) { // Don't overwrite if $httpCode indicates error already
+        error_log("meta_api_functions::uploadPhotoToPage - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response after photo upload.'];
+    }
 
     if ($httpCode >= 400 || isset($data['error'])) {
         if (isset($data['error'])) {
@@ -525,8 +575,8 @@ function uploadPhotoToPage(string $accessToken, string $pageId, string $photoPat
 }
 /*
 // Example for uploadPhotoToPage:
-// $pageAccessToken = 'VALID_PAGE_ACCESS_TOKEN_WITH_PAGES_MANAGE_POSTS';
-// $pageId = 'YOUR_FACEBOOK_PAGE_ID';
+// $pageAccessToken = 'YOUR_PAGE_ACCESS_TOKEN_WITH_PAGES_MANAGE_POSTS_HERE'; // Placeholder
+// $pageId = 'YOUR_FACEBOOK_PAGE_ID_HERE'; // Placeholder
 // $filePath = 'path/to/your/image.jpg'; // Ensure this image exists
 // if (file_exists($filePath)) {
 //    $uploadResult = uploadPhotoToPage($pageAccessToken, $pageId, $filePath, "My beautiful photo uploaded via API!");
@@ -554,7 +604,7 @@ function uploadVideoToPage(string $accessToken, string $pageId, string $videoPat
         return ['error' => "Video file is not readable at path: {$videoPath}"];
     }
     
-    $url = "https://graph-video.facebook.com/v19.0/{$pageId}/videos"; 
+    $url = "https://graph-video.facebook.com/" . META_API_VERSION . "/{$pageId}/videos"; 
     $params = [
         'description' => $description,
         'access_token' => $accessToken,
@@ -574,6 +624,10 @@ function uploadVideoToPage(string $accessToken, string $pageId, string $videoPat
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE && $httpCode < 400) {
+        error_log("meta_api_functions::uploadVideoToPage - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response after video upload.'];
+    }
 
     if ($httpCode >= 400 || isset($data['error'])) {
          if (isset($data['error'])) {
@@ -585,8 +639,8 @@ function uploadVideoToPage(string $accessToken, string $pageId, string $videoPat
 }
 /*
 // Example for uploadVideoToPage:
-// $pageAccessToken = 'VALID_PAGE_ACCESS_TOKEN_WITH_PAGES_MANAGE_POSTS_AND_PUBLISH_VIDEO';
-// $pageId = 'YOUR_FACEBOOK_PAGE_ID';
+// $pageAccessToken = 'YOUR_PAGE_ACCESS_TOKEN_WITH_PAGES_MANAGE_POSTS_AND_PUBLISH_VIDEO_HERE'; // Placeholder
+// $pageId = 'YOUR_FACEBOOK_PAGE_ID_HERE'; // Placeholder
 // $filePath = 'path/to/your/video.mp4'; // Ensure this video exists
 // if (file_exists($filePath)) {
 //    $uploadResult = uploadVideoToPage($pageAccessToken, $pageId, $filePath, "My awesome video uploaded via API!");
@@ -607,7 +661,7 @@ function uploadVideoToPage(string $accessToken, string $pageId, string $videoPat
  */
 function likePost(string $accessToken, string $postId): array
 {
-    $url = "https://graph.facebook.com/v19.0/{$postId}/likes";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$postId}/likes";
     $params = [
         'access_token' => $accessToken
     ];
@@ -621,6 +675,10 @@ function likePost(string $accessToken, string $postId): array
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::likePost - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message']];
@@ -632,8 +690,8 @@ function likePost(string $accessToken, string $postId): array
 }
 /*
 // Example for likePost:
-// $pageAccessToken = 'VALID_PAGE_ACCESS_TOKEN_WITH_PAGES_MANAGE_ENGAGEMENT';
-// $postIdToLike = 'PAGE_ID_POST_ID_TO_LIKE';
+// $pageAccessToken = 'YOUR_PAGE_ACCESS_TOKEN_WITH_PAGES_MANAGE_ENGAGEMENT_HERE'; // Placeholder
+// $postIdToLike = 'YOUR_PAGE_ID_POST_ID_TO_LIKE_HERE'; // Placeholder
 // $likeResult = likePost($pageAccessToken, $postIdToLike);
 // print_r($likeResult);
 */
@@ -648,7 +706,7 @@ function likePost(string $accessToken, string $postId): array
  */
 function commentOnPost(string $accessToken, string $postId, string $message): array
 {
-    $url = "https://graph.facebook.com/v19.0/{$postId}/comments";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$postId}/comments";
     $params = [
         'message' => $message,
         'access_token' => $accessToken
@@ -663,6 +721,10 @@ function commentOnPost(string $accessToken, string $postId, string $message): ar
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::commentOnPost - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message']];
@@ -671,8 +733,8 @@ function commentOnPost(string $accessToken, string $postId, string $message): ar
 }
 /*
 // Example for commentOnPost:
-// $pageAccessToken = 'VALID_PAGE_ACCESS_TOKEN_WITH_PAGES_MANAGE_POSTS'; // Or user token with publish_actions
-// $postIdToComment = 'PAGE_ID_POST_ID_TO_COMMENT';
+// $pageAccessToken = 'YOUR_PAGE_ACCESS_TOKEN_WITH_PAGES_MANAGE_POSTS_HERE'; // Or user token with publish_actions
+// $postIdToComment = 'YOUR_PAGE_ID_POST_ID_TO_COMMENT_HERE'; // Placeholder
 // $commentResult = commentOnPost($pageAccessToken, $postIdToComment, "Great post!");
 // print_r($commentResult);
 */
@@ -687,12 +749,16 @@ function commentOnPost(string $accessToken, string $postId, string $message): ar
  */
 function sharePost(string $accessToken, string $postId, string $targetUserId = 'me'): array
 {
-    $postDetailsUrl = "https://graph.facebook.com/v19.0/{$postId}?fields=permalink_url&access_token={$accessToken}";
+    $postDetailsUrl = "https://graph.facebook.com/" . META_API_VERSION . "/{$postId}?fields=permalink_url&access_token={$accessToken}";
     $ch = curl_init($postDetailsUrl);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $postDetailsResponse = curl_exec($ch);
     curl_close($ch);
     $postDetailsData = json_decode($postDetailsResponse, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::sharePost (get permalink) - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($postDetailsResponse, 0, 200));
+        return ['error' => 'Failed to decode permalink API response.'];
+    }
 
     if (isset($postDetailsData['error'])) {
         return ['error' => "Could not retrieve post details for sharing: " . $postDetailsData['error']['message']];
@@ -702,7 +768,7 @@ function sharePost(string $accessToken, string $postId, string $targetUserId = '
     }
     $linkToShare = $postDetailsData['permalink_url'];
 
-    $url = "https://graph.facebook.com/v19.0/{$targetUserId}/feed";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$targetUserId}/feed";
     $params = [
         'link' => $linkToShare, 
         'access_token' => $accessToken
@@ -717,6 +783,10 @@ function sharePost(string $accessToken, string $postId, string $targetUserId = '
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::sharePost (post to feed) - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode share post API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message']];
@@ -725,8 +795,8 @@ function sharePost(string $accessToken, string $postId, string $targetUserId = '
 }
 /*
 // Example for sharePost:
-// $userAccessToken = 'VALID_USER_ACCESS_TOKEN_WITH_APPROPRIATE_PERMISSIONS';
-// $postIdToShare = 'PUBLIC_POST_ID_TO_SHARE'; // e.g., from another page
+// $userAccessToken = 'YOUR_USER_ACCESS_TOKEN_WITH_APPROPRIATE_PERMISSIONS_HERE'; // Placeholder
+// $postIdToShare = 'PUBLIC_POST_ID_TO_SHARE_HERE'; // Placeholder: e.g., from another page
 // $shareResult = sharePost($userAccessToken, $postIdToShare, 'me'); // Shares to the user's own feed
 // print_r($shareResult);
 */
@@ -744,7 +814,7 @@ function sharePost(string $accessToken, string $postId, string $targetUserId = '
  */
 function getGroupFeed(string $accessToken, string $groupId, int $limit = 10): array
 {
-    $url = "https://graph.facebook.com/v19.0/{$groupId}/feed";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$groupId}/feed";
     $params = [
         'limit' => $limit,
         'access_token' => $accessToken
@@ -757,6 +827,10 @@ function getGroupFeed(string $accessToken, string $groupId, int $limit = 10): ar
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::getGroupFeed - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message']];
@@ -765,8 +839,8 @@ function getGroupFeed(string $accessToken, string $groupId, int $limit = 10): ar
 }
 /*
 // Example for getGroupFeed:
-// $userAccessToken = 'VALID_USER_ACCESS_TOKEN_WITH_GROUP_PERMISSIONS';
-// $groupId = 'YOUR_GROUP_ID';
+// $userAccessToken = 'YOUR_USER_ACCESS_TOKEN_WITH_GROUP_PERMISSIONS_HERE'; // Placeholder
+// $groupId = 'YOUR_GROUP_ID_HERE'; // Placeholder
 // $groupFeed = getGroupFeed($userAccessToken, $groupId, 5);
 // print_r($groupFeed);
 */
@@ -783,7 +857,7 @@ function getGroupFeed(string $accessToken, string $groupId, int $limit = 10): ar
  */
 function getEventInfo(string $accessToken, string $eventId, array $fields = ['id', 'name', 'description', 'start_time', 'end_time', 'place']): array
 {
-    $url = "https://graph.facebook.com/v19.0/{$eventId}";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$eventId}";
     $params = [
         'fields' => implode(',', $fields),
         'access_token' => $accessToken
@@ -796,6 +870,10 @@ function getEventInfo(string $accessToken, string $eventId, array $fields = ['id
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::getEventInfo - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message']];
@@ -804,8 +882,8 @@ function getEventInfo(string $accessToken, string $eventId, array $fields = ['id
 }
 /*
 // Example for getEventInfo:
-// $userAccessToken = 'VALID_USER_OR_PAGE_ACCESS_TOKEN';
-// $eventId = 'YOUR_EVENT_ID';
+// $userAccessToken = 'YOUR_USER_OR_PAGE_ACCESS_TOKEN_HERE'; // Placeholder
+// $eventId = 'YOUR_EVENT_ID_HERE'; // Placeholder
 // $eventInfo = getEventInfo($userAccessToken, $eventId, ['id', 'name', 'start_time', 'cover']);
 // print_r($eventInfo);
 */
@@ -828,6 +906,47 @@ function formatAdAccountId(string $adAccountId): string
 // --- Campaign Management ---
 
 /**
+ * Updates an existing ad campaign.
+ *
+ * @param string $accessToken User access token with ads_management permission.
+ * @param string $campaignId The ID of the campaign to update.
+ * @param array $paramsToUpdate Associative array of parameters to update (e.g., ['name' => 'New Name', 'status' => 'PAUSED']).
+ * @return array API response (typically success true or error).
+ */
+function updateAdCampaign(string $accessToken, string $campaignId, array $paramsToUpdate): array
+{
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$campaignId}";
+    $params = array_merge(['access_token' => $accessToken], $paramsToUpdate);
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE && $httpCode < 400) { // Check if $httpCode already indicates an error
+        error_log("meta_api_functions::updateAdCampaign - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response after campaign update.'];
+    }
+
+    if (isset($data['error'])) {
+        return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
+    }
+    return $data; // Typically returns {'success': true} or the updated fields
+}
+/*
+// Example for updateAdCampaign:
+// $userTokenWithAdsPerms = 'YOUR_USER_TOKEN_WITH_ADS_MANAGEMENT_HERE'; // Placeholder
+// $campaignIdToUpdate = 'YOUR_CAMPAIGN_ID_TO_UPDATE_HERE'; // Placeholder
+// $updateResult = updateAdCampaign($userTokenWithAdsPerms, $campaignIdToUpdate, ['status' => 'PAUSED']);
+// print_r($updateResult);
+*/
+
+/**
  * Creates an ad campaign.
  *
  * @param string $accessToken User access token with ads_management permission.
@@ -847,7 +966,7 @@ function createAdCampaign(
     array $specialAdCategories = []
 ): array {
     $formattedAdAccountId = formatAdAccountId($adAccountId);
-    $url = "https://graph.facebook.com/v19.0/{$formattedAdAccountId}/campaigns";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$formattedAdAccountId}/campaigns";
     $params = [
         'name' => $name,
         'objective' => $objective,
@@ -867,6 +986,10 @@ function createAdCampaign(
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::createAdCampaign - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
@@ -875,8 +998,8 @@ function createAdCampaign(
 }
 /*
 // Example for createAdCampaign:
-// $userTokenWithAdsPerms = 'VALID_USER_TOKEN_WITH_ADS_MANAGEMENT';
-// $adAccountId = 'act_YOUR_AD_ACCOUNT_ID';
+// $userTokenWithAdsPerms = 'YOUR_USER_TOKEN_WITH_ADS_MANAGEMENT_HERE'; // Placeholder
+// $adAccountId = 'act_YOUR_AD_ACCOUNT_ID_HERE'; // Placeholder
 // $campaign = createAdCampaign($userTokenWithAdsPerms, $adAccountId, "My API Campaign", "LINK_CLICKS", "PAUSED", []);
 // print_r($campaign);
 */
@@ -892,7 +1015,7 @@ function createAdCampaign(
 function getAdCampaigns(string $accessToken, string $adAccountId, array $fields = ['id', 'name', 'objective', 'status']): array
 {
     $formattedAdAccountId = formatAdAccountId($adAccountId);
-    $url = "https://graph.facebook.com/v19.0/{$formattedAdAccountId}/campaigns";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$formattedAdAccountId}/campaigns";
     $params = [
         'fields' => implode(',', $fields),
         'access_token' => $accessToken
@@ -905,6 +1028,10 @@ function getAdCampaigns(string $accessToken, string $adAccountId, array $fields 
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::getAdCampaigns - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message']];
@@ -913,8 +1040,8 @@ function getAdCampaigns(string $accessToken, string $adAccountId, array $fields 
 }
 /*
 // Example for getAdCampaigns:
-// $userTokenWithAdsPerms = 'VALID_USER_TOKEN_WITH_ADS_READ';
-// $adAccountId = 'act_YOUR_AD_ACCOUNT_ID';
+// $userTokenWithAdsPerms = 'YOUR_USER_TOKEN_WITH_ADS_READ_HERE'; // Placeholder
+// $adAccountId = 'act_YOUR_AD_ACCOUNT_ID_HERE'; // Placeholder
 // $campaigns = getAdCampaigns($userTokenWithAdsPerms, $adAccountId);
 // print_r($campaigns);
 */
@@ -929,7 +1056,7 @@ function getAdCampaigns(string $accessToken, string $adAccountId, array $fields 
  */
 function getAdSets(string $accessToken, string $campaignId, array $fields = ['id', 'name', 'status', 'daily_budget', 'bid_amount']): array
 {
-    $url = "https://graph.facebook.com/v19.0/{$campaignId}/adsets";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$campaignId}/adsets";
     $params = [
         'fields' => implode(',', $fields),
         'access_token' => $accessToken
@@ -942,6 +1069,10 @@ function getAdSets(string $accessToken, string $campaignId, array $fields = ['id
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::getAdSets - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message']];
@@ -950,8 +1081,8 @@ function getAdSets(string $accessToken, string $campaignId, array $fields = ['id
 }
 /*
 // Example for getAdSets:
-// $userTokenWithAdsPerms = 'VALID_USER_TOKEN_WITH_ADS_READ';
-// $campaignId = 'CAMPAIGN_ID_FROM_GET_AD_CAMPAIGNS';
+// $userTokenWithAdsPerms = 'YOUR_USER_TOKEN_WITH_ADS_READ_HERE'; // Placeholder
+// $campaignId = 'YOUR_CAMPAIGN_ID_FROM_GET_AD_CAMPAIGNS_HERE'; // Placeholder
 // $adSets = getAdSets($userTokenWithAdsPerms, $campaignId);
 // print_r($adSets);
 */
@@ -981,7 +1112,7 @@ function createAdSet(
     string $status = 'PAUSED',
     ?string $bidAmount = null 
 ): array {
-    $url = "https://graph.facebook.com/v19.0/{$campaignId}/adsets"; 
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$campaignId}/adsets"; 
     $params = [
         'campaign_id' => $campaignId, 
         'name' => $name,
@@ -1008,6 +1139,10 @@ function createAdSet(
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::createAdSet - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
@@ -1016,8 +1151,8 @@ function createAdSet(
 }
 /*
 // Example for createAdSet:
-// $userTokenWithAdsPerms = 'VALID_USER_TOKEN_WITH_ADS_MANAGEMENT';
-// $campaignId = 'CAMPAIGN_ID_FROM_CREATE_AD_CAMPAIGN';
+// $userTokenWithAdsPerms = 'YOUR_USER_TOKEN_WITH_ADS_MANAGEMENT_HERE'; // Placeholder
+// $campaignId = 'YOUR_CAMPAIGN_ID_FROM_CREATE_AD_CAMPAIGN_HERE'; // Placeholder
 // $targetingSpec = [
 //     'geo_locations' => ['countries' => ['US']],
 //     'age_min' => 20,
@@ -1040,7 +1175,7 @@ function createAdSet(
 function createAdCreative(string $accessToken, string $adAccountId, string $name, array $objectStorySpec): array
 {
     $formattedAdAccountId = formatAdAccountId($adAccountId);
-    $url = "https://graph.facebook.com/v19.0/{$formattedAdAccountId}/adcreatives";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$formattedAdAccountId}/adcreatives";
     $params = [
         'name' => $name,
         'object_story_spec' => json_encode($objectStorySpec), 
@@ -1056,6 +1191,10 @@ function createAdCreative(string $accessToken, string $adAccountId, string $name
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::createAdCreative - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
@@ -1064,10 +1203,10 @@ function createAdCreative(string $accessToken, string $adAccountId, string $name
 }
 /*
 // Example for createAdCreative:
-// $userTokenWithAdsPerms = 'VALID_USER_TOKEN_WITH_ADS_MANAGEMENT';
-// $adAccountId = 'act_YOUR_AD_ACCOUNT_ID';
-// $pageId = 'YOUR_PAGE_ID_FOR_THE_AD';
-// $imageHash = 'YOUR_UPLOADED_IMAGE_HASH'; // Upload an image to Ad Library or via API first
+// $userTokenWithAdsPerms = 'YOUR_USER_TOKEN_WITH_ADS_MANAGEMENT_HERE'; // Placeholder
+// $adAccountId = 'act_YOUR_AD_ACCOUNT_ID_HERE'; // Placeholder
+// $pageId = 'YOUR_PAGE_ID_FOR_THE_AD_HERE'; // Placeholder
+// $imageHash = 'YOUR_UPLOADED_IMAGE_HASH_HERE'; // Placeholder: Upload an image to Ad Library or via API first
 // $creativeSpec = [
 //     'page_id' => $pageId,
 //     'link_data' => [
@@ -1094,7 +1233,7 @@ function createAdCreative(string $accessToken, string $adAccountId, string $name
 function createAd(string $accessToken, string $adSetId, string $name, string $creativeId, string $status = 'PAUSED', string $adAccountId): array
 {
     $formattedAdAccountId = formatAdAccountId($adAccountId);
-    $url = "https://graph.facebook.com/v19.0/{$formattedAdAccountId}/ads";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$formattedAdAccountId}/ads";
 
     $params = [
         'adset_id' => $adSetId,
@@ -1113,6 +1252,10 @@ function createAd(string $accessToken, string $adSetId, string $name, string $cr
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::createAd - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
@@ -1121,10 +1264,10 @@ function createAd(string $accessToken, string $adSetId, string $name, string $cr
 }
 /*
 // Example for createAd:
-// $userTokenWithAdsPerms = 'VALID_USER_TOKEN_WITH_ADS_MANAGEMENT';
-// $adSetId = 'AD_SET_ID_FROM_CREATE_AD_SET';
-// $creativeId = 'CREATIVE_ID_FROM_CREATE_AD_CREATIVE';
-// $adAccountId = 'act_YOUR_AD_ACCOUNT_ID';
+// $userTokenWithAdsPerms = 'YOUR_USER_TOKEN_WITH_ADS_MANAGEMENT_HERE'; // Placeholder
+// $adSetId = 'YOUR_AD_SET_ID_FROM_CREATE_AD_SET_HERE'; // Placeholder
+// $creativeId = 'YOUR_CREATIVE_ID_FROM_CREATE_AD_CREATIVE_HERE'; // Placeholder
+// $adAccountId = 'act_YOUR_AD_ACCOUNT_ID_HERE'; // Placeholder
 // $ad = createAd($userTokenWithAdsPerms, $adSetId, "My API Ad", $creativeId, "PAUSED", $adAccountId);
 // print_r($ad);
 */
@@ -1156,7 +1299,7 @@ function getAdCampaignInsights(
     string $level = 'campaign', 
     int $limit = 50
 ): array {
-    $url = "https://graph.facebook.com/v19.0/{$campaignId}/insights";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$campaignId}/insights";
     $params = [
         'date_preset' => $datePreset,
         'fields' => implode(',', $fields),
@@ -1172,6 +1315,10 @@ function getAdCampaignInsights(
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::getAdCampaignInsights - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message']];
@@ -1180,8 +1327,8 @@ function getAdCampaignInsights(
 }
 /*
 // Example for getAdCampaignInsights:
-// $userTokenWithAdsPerms = 'VALID_USER_TOKEN_WITH_ADS_READ';
-// $campaignIdForInsights = 'CAMPAIGN_ID_TO_GET_INSIGHTS_FOR';
+// $userTokenWithAdsPerms = 'YOUR_USER_TOKEN_WITH_ADS_READ_HERE'; // Placeholder
+// $campaignIdForInsights = 'YOUR_CAMPAIGN_ID_TO_GET_INSIGHTS_FOR_HERE'; // Placeholder
 // $insights = getAdCampaignInsights($userTokenWithAdsPerms, $campaignIdForInsights, 'last_28d');
 // print_r($insights);
 */
@@ -1190,8 +1337,9 @@ function getAdCampaignInsights(
 
 /**
  * Sends a text message via the Messenger Platform.
+ * This function is primarily for Facebook Messenger. For WhatsApp, use sendWhatsAppTextMessage.
  *
- * @param string $pageAccessToken Page Access Token.
+ * @param string $pageAccessToken Page Access Token for the Facebook Page.
  * @param string $recipientId PSID (Page-Scoped ID) of the recipient.
  * @param string $messageText Text of the message.
  * @param string $messagingType Messaging type. Defaults to RESPONSE.
@@ -1199,7 +1347,7 @@ function getAdCampaignInsights(
  */
 function sendTextMessage(string $pageAccessToken, string $recipientId, string $messageText, string $messagingType = 'RESPONSE'): array
 {
-    $url = "https://graph.facebook.com/v19.0/me/messages?access_token=" . urlencode($pageAccessToken);
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/me/messages?access_token=" . urlencode($pageAccessToken);
     $payload = [
         'recipient' => ['id' => $recipientId],
         'message' => ['text' => $messageText],
@@ -1216,6 +1364,10 @@ function sendTextMessage(string $pageAccessToken, string $recipientId, string $m
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::sendTextMessage (Messenger) - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
@@ -1224,10 +1376,116 @@ function sendTextMessage(string $pageAccessToken, string $recipientId, string $m
 }
 /*
 // Example for sendTextMessage:
-// $pageAccessToken = 'VALID_PAGE_ACCESS_TOKEN_WITH_PAGES_MESSAGING';
-// $recipientPsid = 'USER_PSID_FROM_WEBHOOK'; // Page-Scoped ID of the user
+// $pageAccessToken = 'YOUR_PAGE_ACCESS_TOKEN_WITH_PAGES_MESSAGING_HERE'; // Placeholder
+// $recipientPsid = 'USER_PSID_FROM_WEBHOOK_HERE'; // Placeholder: Page-Scoped ID of the user
 // $sendResult = sendTextMessage($pageAccessToken, $recipientPsid, "Hello from your Page!");
 // print_r($sendResult);
+*/
+
+/**
+ * Sends a text message via the WhatsApp Business API.
+ *
+ * @param string $systemUserAccessToken System User Access Token with whatsapp_business_messaging permission.
+ * @param string $phoneNumberId The ID of the phone number sending the message.
+ * @param string $recipientWabId The WhatsApp ID (phone number) of the recipient.
+ * @param string $messageText Text of the message. WhatsApp supports some Markdown-like formatting.
+ * @param string $messagingProduct (Optional) Should be "whatsapp".
+ * @return array API response (e.g., message_id) or error.
+ */
+function sendWhatsAppTextMessage(
+    string $systemUserAccessToken,
+    string $phoneNumberId,
+    string $recipientWabId,
+    string $messageText,
+    string $messagingProduct = "whatsapp"
+): array {
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$phoneNumberId}/messages"; // WhatsApp specific endpoint
+    
+    $payload = [
+        'messaging_product' => $messagingProduct,
+        'to' => $recipientWabId,
+        'type' => 'text',
+        'text' => ['body' => $messageText]
+    ];
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Authorization: Bearer ' . $systemUserAccessToken,
+        'Content-Type: application/json'
+    ]);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::sendWhatsAppTextMessage - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
+
+    if (isset($data['error'])) {
+        return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
+    }
+    return $data; // Contains message ID(s) if successful
+}
+/*
+// Example for sendWhatsAppTextMessage:
+// $wabaSystemUserToken = 'YOUR_WABA_SYSTEM_USER_ACCESS_TOKEN_HERE'; // Placeholder
+// $phoneNumberId = 'YOUR_WABA_PHONE_NUMBER_ID_HERE'; // Placeholder
+// $recipientWabId = 'RECIPIENT_PHONE_NUMBER_HERE'; // Placeholder e.g., '15551234567'
+// $message = "Hello from PHP via WhatsApp API! This message supports *bold*, _italic_, ~strikethrough~, and ```code``` formatting.";
+// $sendResult = sendWhatsAppTextMessage($wabaSystemUserToken, $phoneNumberId, $recipientWabId, $message);
+// print_r($sendResult);
+*/
+
+/*
+Conceptual Note on WhatsApp Template Messages:
+
+WhatsApp has specific rules for business-initiated conversations. After 24 hours since the last
+user message, businesses can typically only send messages using pre-approved "Message Templates".
+These templates must be approved by Meta and can include placeholders for dynamic content.
+
+Sending a template message involves a different payload structure:
+POST /v19.0/{phone_number_id}/messages  (Note: Use META_API_VERSION constant)
+{
+    "messaging_product": "whatsapp",
+    "to": "RECIPIENT_PHONE_NUMBER",
+    "type": "template",
+    "template": {
+        "name": "your_template_name",
+        "language": {
+            "code": "en_US" // or other language codes
+        },
+        "components": [ // Optional, if your template has variables or buttons
+            // Example for body variables:
+            // {
+            //     "type": "body",
+            //     "parameters": [
+            //         { "type": "text", "text": "value_for_placeholder_1" },
+            //         { "type": "text", "text": "value_for_placeholder_2" }
+            //     ]
+            // },
+            // Example for button payload (if template has buttons with dynamic URLs/payloads)
+            // {
+            //     "type": "button",
+            //     "sub_type": "url", // or "quick_reply"
+            //     "index": "0", // Button index (0, 1, 2...)
+            //     "parameters": [
+            //         { "type": "text", "text": "dynamic_part_of_url_or_payload" }
+            //     ]
+            // }
+        ]
+    }
+}
+
+This `sendWhatsAppTextMessage` function is for sending free-form text messages, typically
+within the 24-hour customer service window. For business-initiated messages outside this window,
+or for transactional notifications, you would need to implement a separate function to send
+template messages using the structure above.
 */
 
 /**
@@ -1241,7 +1499,7 @@ function sendTextMessage(string $pageAccessToken, string $recipientId, string $m
  */
 function sendImageMessage(string $pageAccessToken, string $recipientId, string $imageUrl, string $messagingType = 'RESPONSE'): array
 {
-    $url = "https://graph.facebook.com/v19.0/me/messages?access_token=" . urlencode($pageAccessToken);
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/me/messages?access_token=" . urlencode($pageAccessToken);
     $payload = [
         'recipient' => ['id' => $recipientId],
         'message' => [
@@ -1263,6 +1521,10 @@ function sendImageMessage(string $pageAccessToken, string $recipientId, string $
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::sendImageMessage - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
@@ -1271,8 +1533,8 @@ function sendImageMessage(string $pageAccessToken, string $recipientId, string $
 }
 /*
 // Example for sendImageMessage:
-// $pageAccessToken = 'VALID_PAGE_ACCESS_TOKEN_WITH_PAGES_MESSAGING';
-// $recipientPsid = 'USER_PSID_FROM_WEBHOOK';
+// $pageAccessToken = 'YOUR_PAGE_ACCESS_TOKEN_WITH_PAGES_MESSAGING_HERE'; // Placeholder
+// $recipientPsid = 'USER_PSID_FROM_WEBHOOK_HERE'; // Placeholder
 // $publicImageUrl = 'https://www.example.com/image.jpg'; // Must be a public URL
 // $sendResult = sendImageMessage($pageAccessToken, $recipientPsid, $publicImageUrl);
 // print_r($sendResult);
@@ -1294,7 +1556,7 @@ function sendButtonTemplateMessage(string $pageAccessToken, string $recipientId,
         return ['error' => 'Button template supports a maximum of 3 buttons.'];
     }
 
-    $url = "https://graph.facebook.com/v19.0/me/messages?access_token=" . urlencode($pageAccessToken);
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/me/messages?access_token=" . urlencode($pageAccessToken);
     $payload = [
         'recipient' => ['id' => $recipientId],
         'message' => [
@@ -1320,6 +1582,10 @@ function sendButtonTemplateMessage(string $pageAccessToken, string $recipientId,
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::sendButtonTemplateMessage - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
@@ -1328,8 +1594,8 @@ function sendButtonTemplateMessage(string $pageAccessToken, string $recipientId,
 }
 /*
 // Example for sendButtonTemplateMessage:
-// $pageAccessToken = 'VALID_PAGE_ACCESS_TOKEN_WITH_PAGES_MESSAGING';
-// $recipientPsid = 'USER_PSID_FROM_WEBHOOK';
+// $pageAccessToken = 'YOUR_PAGE_ACCESS_TOKEN_WITH_PAGES_MESSAGING_HERE'; // Placeholder
+// $recipientPsid = 'USER_PSID_FROM_WEBHOOK_HERE'; // Placeholder
 // $buttons = [
 //     ['type' => 'web_url', 'url' => 'https://www.example.com', 'title' => 'Visit Website'],
 //     ['type' => 'postback', 'title' => 'Learn More', 'payload' => 'LEARN_MORE_PAYLOAD']
@@ -1371,7 +1637,7 @@ Prerequisites Note:
  */
 function publishInstagramPhoto(string $accessToken, string $instagramAccountId, string $imageUrl, string $caption = '', ?string $userTags = null): array
 {
-    $url = "https://graph.facebook.com/v19.0/{$instagramAccountId}/media";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$instagramAccountId}/media";
     $params = [
         'image_url' => $imageUrl,
         'caption' => $caption,
@@ -1390,6 +1656,10 @@ function publishInstagramPhoto(string $accessToken, string $instagramAccountId, 
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::publishInstagramPhoto (media container creation) - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response for media container.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
@@ -1403,8 +1673,8 @@ function publishInstagramPhoto(string $accessToken, string $instagramAccountId, 
 }
 /*
 // Example for publishInstagramPhoto:
-// $userTokenWithInstaPerms = 'VALID_USER_TOKEN_WITH_INSTAGRAM_CONTENT_PUBLISH';
-// $instagramAccountId = 'YOUR_INSTAGRAM_BUSINESS_ACCOUNT_ID';
+// $userTokenWithInstaPerms = 'YOUR_USER_TOKEN_WITH_INSTAGRAM_CONTENT_PUBLISH_HERE'; // Placeholder
+// $instagramAccountId = 'YOUR_INSTAGRAM_BUSINESS_ACCOUNT_ID_HERE'; // Placeholder
 // $publicImageUrl = 'https://www.example.com/your-image.jpg';
 // $photoResult = publishInstagramPhoto($userTokenWithInstaPerms, $instagramAccountId, $publicImageUrl, "My awesome Instagram photo!");
 // print_r($photoResult);
@@ -1435,7 +1705,7 @@ function createInstagramMediaContainer(
     ?int $thumbOffset = null,
     ?string $locationId = null
 ): array {
-    $url = "https://graph.facebook.com/v19.0/{$instagramAccountId}/media";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$instagramAccountId}/media";
     $params = ['access_token' => $accessToken];
 
     if ($isVideo) {
@@ -1462,6 +1732,10 @@ function createInstagramMediaContainer(
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::createInstagramMediaContainer - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
@@ -1473,8 +1747,8 @@ function createInstagramMediaContainer(
 }
 /*
 // Example for createInstagramMediaContainer (photo):
-// $userTokenWithInstaPerms = 'VALID_USER_TOKEN_WITH_INSTAGRAM_CONTENT_PUBLISH';
-// $instagramAccountId = 'YOUR_INSTAGRAM_BUSINESS_ACCOUNT_ID';
+// $userTokenWithInstaPerms = 'YOUR_USER_TOKEN_WITH_INSTAGRAM_CONTENT_PUBLISH_HERE'; // Placeholder
+// $instagramAccountId = 'YOUR_INSTAGRAM_BUSINESS_ACCOUNT_ID_HERE'; // Placeholder
 // $publicImageUrl = 'https://www.example.com/your-image.jpg';
 // $container = createInstagramMediaContainer($userTokenWithInstaPerms, $instagramAccountId, $publicImageUrl, null, "Caption for container");
 // print_r($container);
@@ -1490,7 +1764,7 @@ function createInstagramMediaContainer(
  */
 function publishInstagramMediaContainer(string $accessToken, string $instagramAccountId, string $creationId): array
 {
-    $url = "https://graph.facebook.com/v19.0/{$instagramAccountId}/media_publish";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$instagramAccountId}/media_publish";
     $params = [
         'creation_id' => $creationId,
         'access_token' => $accessToken
@@ -1505,6 +1779,11 @@ function publishInstagramMediaContainer(string $accessToken, string $instagramAc
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE && ! (isset($data['error']['code']) && $data['error']['code'] === 9007) ) { // Don't log decode error if it's a known pending status
+        error_log("meta_api_functions::publishInstagramMediaContainer - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        // Potentially return error if not a pending status, but the logic below handles 'error' key already
+    }
+
 
     if (isset($data['error'])) {
         if (isset($data['error']['code']) && $data['error']['code'] === 9007) { 
@@ -1516,9 +1795,9 @@ function publishInstagramMediaContainer(string $accessToken, string $instagramAc
 }
 /*
 // Example for publishInstagramMediaContainer:
-// $userTokenWithInstaPerms = 'VALID_USER_TOKEN_WITH_INSTAGRAM_CONTENT_PUBLISH';
-// $instagramAccountId = 'YOUR_INSTAGRAM_BUSINESS_ACCOUNT_ID';
-// $creationIdFromPreviousStep = 'CREATION_ID_FROM_CREATE_CONTAINER';
+// $userTokenWithInstaPerms = 'YOUR_USER_TOKEN_WITH_INSTAGRAM_CONTENT_PUBLISH_HERE'; // Placeholder
+// $instagramAccountId = 'YOUR_INSTAGRAM_BUSINESS_ACCOUNT_ID_HERE'; // Placeholder
+// $creationIdFromPreviousStep = 'YOUR_CREATION_ID_FROM_CREATE_CONTAINER_HERE'; // Placeholder
 // $publishResult = publishInstagramMediaContainer($userTokenWithInstaPerms, $instagramAccountId, $creationIdFromPreviousStep);
 // print_r($publishResult);
 */
@@ -1550,8 +1829,8 @@ function publishInstagramVideo(string $accessToken, string $instagramAccountId, 
 }
 /*
 // Example for publishInstagramVideo:
-// $userTokenWithInstaPerms = 'VALID_USER_TOKEN_WITH_INSTAGRAM_CONTENT_PUBLISH';
-// $instagramAccountId = 'YOUR_INSTAGRAM_BUSINESS_ACCOUNT_ID';
+// $userTokenWithInstaPerms = 'YOUR_USER_TOKEN_WITH_INSTAGRAM_CONTENT_PUBLISH_HERE'; // Placeholder
+// $instagramAccountId = 'YOUR_INSTAGRAM_BUSINESS_ACCOUNT_ID_HERE'; // Placeholder
 // $publicVideoUrl = 'https://www.example.com/your-video.mp4';
 // $videoResult = publishInstagramVideo($userTokenWithInstaPerms, $instagramAccountId, $publicVideoUrl, "My awesome Instagram video!");
 // print_r($videoResult);
@@ -1576,7 +1855,7 @@ function getInstagramUserMedia(
     int $limit = 25,
     array $fields = ['id', 'caption', 'media_type', 'media_url', 'permalink', 'thumbnail_url', 'timestamp', 'username', 'like_count', 'comments_count']
 ): array {
-    $url = "https://graph.facebook.com/v19.0/{$instagramAccountId}/media";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$instagramAccountId}/media";
     $params = [
         'fields' => implode(',', $fields) . ",media_product_type", 
         'limit' => $limit,
@@ -1590,6 +1869,10 @@ function getInstagramUserMedia(
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::getInstagramUserMedia - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
@@ -1598,8 +1881,8 @@ function getInstagramUserMedia(
 }
 /*
 // Example for getInstagramUserMedia:
-// $userTokenWithInstaPerms = 'VALID_USER_TOKEN_WITH_INSTAGRAM_BASIC';
-// $instagramAccountId = 'YOUR_INSTAGRAM_BUSINESS_ACCOUNT_ID';
+// $userTokenWithInstaPerms = 'YOUR_USER_TOKEN_WITH_INSTAGRAM_BASIC_HERE'; // Placeholder
+// $instagramAccountId = 'YOUR_INSTAGRAM_BUSINESS_ACCOUNT_ID_HERE'; // Placeholder
 // $media = getInstagramUserMedia($userTokenWithInstaPerms, $instagramAccountId, 'IMAGE', 10);
 // print_r($media);
 */
@@ -1614,7 +1897,7 @@ function getInstagramUserMedia(
  */
 function getInstagramMediaInfo(string $accessToken, string $mediaId, array $fields = ['id', 'caption', 'media_type', 'media_url', 'permalink', 'like_count', 'comments_count', 'owner', 'timestamp', 'username']): array
 {
-    $url = "https://graph.facebook.com/v19.0/{$mediaId}";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$mediaId}";
     $params = [
         'fields' => implode(',', $fields),
         'access_token' => $accessToken
@@ -1627,6 +1910,10 @@ function getInstagramMediaInfo(string $accessToken, string $mediaId, array $fiel
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::getInstagramMediaInfo - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
@@ -1635,8 +1922,8 @@ function getInstagramMediaInfo(string $accessToken, string $mediaId, array $fiel
 }
 /*
 // Example for getInstagramMediaInfo:
-// $userTokenWithInstaPerms = 'VALID_USER_TOKEN_WITH_INSTAGRAM_BASIC';
-// $instaMediaId = 'INSTAGRAM_MEDIA_ID_TO_QUERY';
+// $userTokenWithInstaPerms = 'YOUR_USER_TOKEN_WITH_INSTAGRAM_BASIC_HERE'; // Placeholder
+// $instaMediaId = 'YOUR_INSTAGRAM_MEDIA_ID_TO_QUERY_HERE'; // Placeholder
 // $mediaDetails = getInstagramMediaInfo($userTokenWithInstaPerms, $instaMediaId);
 // print_r($mediaDetails);
 */
@@ -1654,7 +1941,7 @@ function getInstagramMediaInfo(string $accessToken, string $mediaId, array $fiel
  */
 function getInstagramPostComments(string $accessToken, string $mediaId, int $limit = 25, array $fields = ['id', 'text', 'username', 'timestamp', 'like_count', 'replies']): array
 {
-    $url = "https://graph.facebook.com/v19.0/{$mediaId}/comments";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$mediaId}/comments";
     $params = [
         'fields' => implode(',', $fields),
         'limit' => $limit,
@@ -1668,6 +1955,10 @@ function getInstagramPostComments(string $accessToken, string $mediaId, int $lim
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::getInstagramPostComments - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
@@ -1676,8 +1967,8 @@ function getInstagramPostComments(string $accessToken, string $mediaId, int $lim
 }
 /*
 // Example for getInstagramPostComments:
-// $userTokenWithInstaPerms = 'VALID_USER_TOKEN_WITH_INSTAGRAM_MANAGE_COMMENTS';
-// $instaMediaIdWithComments = 'INSTAGRAM_MEDIA_ID_WITH_COMMENTS';
+// $userTokenWithInstaPerms = 'YOUR_USER_TOKEN_WITH_INSTAGRAM_MANAGE_COMMENTS_HERE'; // Placeholder
+// $instaMediaIdWithComments = 'YOUR_INSTAGRAM_MEDIA_ID_WITH_COMMENTS_HERE'; // Placeholder
 // $comments = getInstagramPostComments($userTokenWithInstaPerms, $instaMediaIdWithComments, 10);
 // print_r($comments);
 */
@@ -1692,7 +1983,7 @@ function getInstagramPostComments(string $accessToken, string $mediaId, int $lim
  */
 function replyToInstagramComment(string $accessToken, string $commentId, string $message): array
 {
-    $url = "https://graph.facebook.com/v19.0/{$commentId}/replies";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$commentId}/replies";
     $params = [
         'message' => $message,
         'access_token' => $accessToken
@@ -1707,6 +1998,10 @@ function replyToInstagramComment(string $accessToken, string $commentId, string 
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::replyToInstagramComment - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
@@ -1715,8 +2010,8 @@ function replyToInstagramComment(string $accessToken, string $commentId, string 
 }
 /*
 // Example for replyToInstagramComment:
-// $userTokenWithInstaPerms = 'VALID_USER_TOKEN_WITH_INSTAGRAM_MANAGE_COMMENTS';
-// $instaCommentIdToReplyTo = 'INSTAGRAM_COMMENT_ID';
+// $userTokenWithInstaPerms = 'YOUR_USER_TOKEN_WITH_INSTAGRAM_MANAGE_COMMENTS_HERE'; // Placeholder
+// $instaCommentIdToReplyTo = 'YOUR_INSTAGRAM_COMMENT_ID_HERE'; // Placeholder
 // $replyResult = replyToInstagramComment($userTokenWithInstaPerms, $instaCommentIdToReplyTo, "Thanks for your comment!");
 // print_r($replyResult);
 */
@@ -1730,7 +2025,7 @@ function replyToInstagramComment(string $accessToken, string $commentId, string 
  */
 function hideInstagramComment(string $accessToken, string $commentId): array
 {
-    $url = "https://graph.facebook.com/v19.0/{$commentId}";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$commentId}";
     $params = [
         'hide' => 'true',
         'access_token' => $accessToken
@@ -1745,6 +2040,10 @@ function hideInstagramComment(string $accessToken, string $commentId): array
     curl_close($ch);
 
     $data = json_decode($response, true);
+     if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::hideInstagramComment - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
@@ -1753,8 +2052,8 @@ function hideInstagramComment(string $accessToken, string $commentId): array
 }
 /*
 // Example for hideInstagramComment:
-// $userTokenWithInstaPerms = 'VALID_USER_TOKEN_WITH_INSTAGRAM_MANAGE_COMMENTS';
-// $instaCommentIdToHide = 'INSTAGRAM_COMMENT_ID';
+// $userTokenWithInstaPerms = 'YOUR_USER_TOKEN_WITH_INSTAGRAM_MANAGE_COMMENTS_HERE'; // Placeholder
+// $instaCommentIdToHide = 'YOUR_INSTAGRAM_COMMENT_ID_HERE'; // Placeholder
 // $hideResult = hideInstagramComment($userTokenWithInstaPerms, $instaCommentIdToHide);
 // print_r($hideResult);
 */
@@ -1768,7 +2067,7 @@ function hideInstagramComment(string $accessToken, string $commentId): array
  */
 function unhideInstagramComment(string $accessToken, string $commentId): array
 {
-    $url = "https://graph.facebook.com/v19.0/{$commentId}";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$commentId}";
     $params = [
         'hide' => 'false',
         'access_token' => $accessToken
@@ -1783,6 +2082,10 @@ function unhideInstagramComment(string $accessToken, string $commentId): array
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::unhideInstagramComment - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
@@ -1791,8 +2094,8 @@ function unhideInstagramComment(string $accessToken, string $commentId): array
 }
 /*
 // Example for unhideInstagramComment:
-// $userTokenWithInstaPerms = 'VALID_USER_TOKEN_WITH_INSTAGRAM_MANAGE_COMMENTS';
-// $instaCommentIdToUnhide = 'INSTAGRAM_COMMENT_ID';
+// $userTokenWithInstaPerms = 'YOUR_USER_TOKEN_WITH_INSTAGRAM_MANAGE_COMMENTS_HERE'; // Placeholder
+// $instaCommentIdToUnhide = 'YOUR_INSTAGRAM_COMMENT_ID_HERE'; // Placeholder
 // $unhideResult = unhideInstagramComment($userTokenWithInstaPerms, $instaCommentIdToUnhide);
 // print_r($unhideResult);
 */
@@ -1809,7 +2112,7 @@ function unhideInstagramComment(string $accessToken, string $commentId): array
  */
 function getInstagramMediaInsights(string $accessToken, string $mediaId, array $metrics = ['engagement', 'impressions', 'reach', 'saved']): array
 {
-    $url = "https://graph.facebook.com/v19.0/{$mediaId}/insights";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$mediaId}/insights";
     $params = [
         'metric' => implode(',', $metrics),
         'access_token' => $accessToken
@@ -1822,6 +2125,10 @@ function getInstagramMediaInsights(string $accessToken, string $mediaId, array $
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::getInstagramMediaInsights - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
@@ -1830,8 +2137,8 @@ function getInstagramMediaInsights(string $accessToken, string $mediaId, array $
 }
 /*
 // Example for getInstagramMediaInsights:
-// $userTokenWithInstaPerms = 'VALID_USER_TOKEN_WITH_INSTAGRAM_MANAGE_INSIGHTS';
-// $instaMediaIdForInsights = 'INSTAGRAM_MEDIA_ID';
+// $userTokenWithInstaPerms = 'YOUR_USER_TOKEN_WITH_INSTAGRAM_MANAGE_INSIGHTS_HERE'; // Placeholder
+// $instaMediaIdForInsights = 'YOUR_INSTAGRAM_MEDIA_ID_HERE'; // Placeholder
 // $mediaInsights = getInstagramMediaInsights($userTokenWithInstaPerms, $instaMediaIdForInsights, ['impressions', 'reach', 'likes']);
 // print_r($mediaInsights);
 */
@@ -1855,7 +2162,7 @@ function getInstagramUserInsights(
     ?string $since = null,
     ?string $until = null
 ): array { 
-    $url = "https://graph.facebook.com/v19.0/{$instagramAccountId}/insights";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$instagramAccountId}/insights";
     $params = [
         'metric' => implode(',', $metrics),
         'period' => $period,
@@ -1871,6 +2178,10 @@ function getInstagramUserInsights(
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::getInstagramUserInsights - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
@@ -1879,8 +2190,8 @@ function getInstagramUserInsights(
 }
 /*
 // Example for getInstagramUserInsights:
-// $userTokenWithInstaPerms = 'VALID_USER_TOKEN_WITH_INSTAGRAM_MANAGE_INSIGHTS';
-// $instagramAccountId = 'YOUR_INSTAGRAM_BUSINESS_ACCOUNT_ID';
+// $userTokenWithInstaPerms = 'YOUR_USER_TOKEN_WITH_INSTAGRAM_MANAGE_INSIGHTS_HERE'; // Placeholder
+// $instagramAccountId = 'YOUR_INSTAGRAM_BUSINESS_ACCOUNT_ID_HERE'; // Placeholder
 // $userInsights = getInstagramUserInsights($userTokenWithInstaPerms, $instagramAccountId, ['follower_count', 'reach'], 'week');
 // print_r($userInsights);
 */
@@ -1912,7 +2223,7 @@ function getPageInsights(
     ?string $since = null,
     ?string $until = null
 ): array {
-    $url = "https://graph.facebook.com/v19.0/{$pageId}/insights";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$pageId}/insights";
     $params = [
         'metric' => implode(',', $metrics),
         'period' => $period,
@@ -1933,6 +2244,10 @@ function getPageInsights(
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::getPageInsights - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
@@ -1941,8 +2256,8 @@ function getPageInsights(
 }
 /*
 // Example for getPageInsights:
-// $pageAccessToken = 'VALID_PAGE_ACCESS_TOKEN_WITH_READ_INSIGHTS';
-// $pageId = 'YOUR_FACEBOOK_PAGE_ID';
+// $pageAccessToken = 'YOUR_PAGE_ACCESS_TOKEN_WITH_READ_INSIGHTS_HERE'; // Placeholder
+// $pageId = 'YOUR_FACEBOOK_PAGE_ID_HERE'; // Placeholder
 // $pageInsights = getPageInsights($pageAccessToken, $pageId, ['page_views_total', 'page_actions_post_reactions_like_total'], 'days_28');
 // print_r($pageInsights);
 */
@@ -1960,7 +2275,7 @@ function getPostInsights(
     string $postId,
     array $metrics = ['post_impressions', 'post_engaged_users', 'post_clicks']
 ): array {
-    $url = "https://graph.facebook.com/v19.0/{$postId}/insights";
+    $url = "https://graph.facebook.com/" . META_API_VERSION . "/{$postId}/insights";
     $params = [
         'metric' => implode(',', $metrics),
         'access_token' => $accessToken
@@ -1973,6 +2288,10 @@ function getPostInsights(
     curl_close($ch);
 
     $data = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("meta_api_functions::getPostInsights - JSON Decode Error: " . json_last_error_msg() . " | Response snippet: " . substr($response, 0, 200));
+        return ['error' => 'Failed to decode API response.'];
+    }
 
     if (isset($data['error'])) {
         return ['error' => $data['error']['message'], 'details' => $data['error'] ?? null];
@@ -1981,8 +2300,8 @@ function getPostInsights(
 }
 /*
 // Example for getPostInsights:
-// $pageAccessToken = 'VALID_PAGE_ACCESS_TOKEN_WITH_READ_INSIGHTS';
-// $postId = 'YOUR_PAGE_ID_POST_ID';
+// $pageAccessToken = 'YOUR_PAGE_ACCESS_TOKEN_WITH_READ_INSIGHTS_HERE'; // Placeholder
+// $postId = 'YOUR_PAGE_ID_POST_ID_HERE'; // Placeholder
 // $postInsights = getPostInsights($pageAccessToken, $postId, ['post_impressions_unique', 'post_engaged_fan']);
 // print_r($postInsights);
 */
@@ -2020,16 +2339,19 @@ Product Catalogs (Purpose):
 // --- Consolidated Demo Usage Examples ---
 /*
 // --- Placeholder Variables ---
-$appId = 'YOUR_APP_ID'; // Replace with your App ID
-$appSecret = 'YOUR_APP_SECRET'; // Replace with your App Secret
-$redirectUri = 'YOUR_REDIRECT_URI'; // e.g., https://yourdomain.com/callback.php, must be configured in App Dashboard
-$pageId = 'YOUR_PAGE_ID'; // Replace with a Page ID you manage
-$instagramAccountId = 'YOUR_INSTAGRAM_BUSINESS_ACCOUNT_ID'; // Obtain via /me/accounts -> instagram_business_account
-$adAccountId = 'act_YOUR_AD_ACCOUNT_ID'; // Remember the 'act_' prefix for Ad Account ID
+$appId = 'YOUR_APP_ID_HERE'; // Replace with your App ID
+$appSecret = 'YOUR_APP_SECRET_HERE'; // Replace with your App Secret
+$redirectUri = 'YOUR_REDIRECT_URI_HERE'; // e.g., https://yourdomain.com/callback.php, must be configured in App Dashboard
+$pageId = 'YOUR_PAGE_ID_HERE'; // Replace with a Page ID you manage
+$instagramAccountId = 'YOUR_INSTAGRAM_BUSINESS_ACCOUNT_ID_HERE'; // Obtain via /me/accounts -> instagram_business_account
+$adAccountId = 'act_YOUR_AD_ACCOUNT_ID_HERE'; // Remember the 'act_' prefix for Ad Account ID
 
 // These would typically be obtained via the OAuth flow and stored securely
-$userAccessToken = 'USER_ACCESS_TOKEN_OBTAINED_VIA_OAUTH'; // Replace with a valid long-lived User Access Token
-$pageAccessToken = 'PAGE_ACCESS_TOKEN_OBTAINED_VIA_GET_PAGE_ACCESS_TOKEN'; // Replace with a valid Page Access Token
+$userAccessToken = 'YOUR_USER_ACCESS_TOKEN_OBTAINED_VIA_OAUTH_HERE'; // Replace with a valid long-lived User Access Token
+$pageAccessToken = 'YOUR_PAGE_ACCESS_TOKEN_OBTAINED_VIA_GET_PAGE_ACCESS_TOKEN_HERE'; // Replace with a valid Page Access Token
+$whatsAppSystemUserToken = 'YOUR_WHATSAPP_SYSTEM_USER_TOKEN_HERE'; // For WhatsApp API calls
+$whatsAppPhoneNumberId = 'YOUR_WHATSAPP_PHONE_NUMBER_ID_HERE'; // For WhatsApp API calls
+
 
 $examplePhotoPath = __DIR__ . '/test_photo.jpg'; // Ensure this file exists for upload demos
 $exampleVideoPath = __DIR__ . '/test_video.mp4'; // Ensure this file exists for upload demos
@@ -2046,9 +2368,10 @@ $exampleVideoPath = __DIR__ . '/test_video.mp4'; // Ensure this file exists for 
 //     'instagram_basic', 'instagram_content_publish', 'instagram_manage_comments', 'instagram_manage_insights', // Instagram
 //     'ads_management', 'ads_read', // Marketing API
 //     'pages_messaging', // Messenger
+//     'whatsapp_business_messaging', 'whatsapp_business_management', // WhatsApp Business
 //     'business_management' // If managing Business assets
 // ];
-// if ($appId !== 'YOUR_APP_ID' && $redirectUri !== 'YOUR_REDIRECT_URI') {
+// if ($appId !== 'YOUR_APP_ID_HERE' && $redirectUri !== 'YOUR_REDIRECT_URI_HERE') {
 //    $authUrl = getOAuthUrl($appId, $redirectUri, $scopesForAuth);
 //    echo "Authorize here: " . $authUrl . "\n";
 //    echo "After authorization, you will be redirected to your redirect URI with a 'code' parameter.\n";
@@ -2059,7 +2382,7 @@ $exampleVideoPath = __DIR__ . '/test_video.mp4'; // Ensure this file exists for 
 
 // Step 1.2: Exchange Code for Access Token (on your redirect URI page - e.g., callback.php)
 // $code = $_GET['code'] ?? null; 
-// if ($code && $appId !== 'YOUR_APP_ID' && $appSecret !== 'YOUR_APP_SECRET' && $redirectUri !== 'YOUR_REDIRECT_URI') {
+// if ($code && $appId !== 'YOUR_APP_ID_HERE' && $appSecret !== 'YOUR_APP_SECRET_HERE' && $redirectUri !== 'YOUR_REDIRECT_URI_HERE') {
 //     $tokenData = getAccessToken($appId, $appSecret, $redirectUri, $code);
 //     if (isset($tokenData['access_token'])) {
 //         $shortLivedUserToken = $tokenData['access_token'];
@@ -2072,7 +2395,7 @@ $exampleVideoPath = __DIR__ . '/test_video.mp4'; // Ensure this file exists for 
 //             echo "Long-lived User Access Token: " . $userAccessToken . "\n";
 
 //             // Step 1.4: Get Page Access Token (if managing a page)
-//             if ($pageId !== 'YOUR_PAGE_ID' && $userAccessToken !== 'USER_ACCESS_TOKEN_OBTAINED_VIA_OAUTH') { 
+//             if ($pageId !== 'YOUR_PAGE_ID_HERE' && $userAccessToken !== 'YOUR_USER_ACCESS_TOKEN_OBTAINED_VIA_OAUTH_HERE') { 
 //                 $pageAccessTokenData = getPageAccessToken($userAccessToken, $pageId);
 //                 if (isset($pageAccessTokenData['page_access_token'])) { 
 //                     $pageAccessToken = $pageAccessTokenData['page_access_token']; // Store this securely!
@@ -2096,47 +2419,57 @@ $exampleVideoPath = __DIR__ . '/test_video.mp4'; // Ensure this file exists for 
 // --- 2. Example API Calls (Assuming you have valid tokens and IDs from the flow above or configuration) ---
 
 // // Example: Get User Profile (using User Access Token)
-// if ($userAccessToken !== 'USER_ACCESS_TOKEN_OBTAINED_VIA_OAUTH') {
+// if ($userAccessToken !== 'YOUR_USER_ACCESS_TOKEN_OBTAINED_VIA_OAUTH_HERE') {
 //    $userProfile = getUserProfile($userAccessToken);
 //    echo "\nUser Profile:\n"; print_r($userProfile); echo "\n";
 // } else { echo "Skipping getUserProfile: userAccessToken is a placeholder.\n"; }
 
 // // Example: Get Page Info (using Page Access Token or User Access Token if user is admin)
-// if ($pageAccessToken !== 'PAGE_ACCESS_TOKEN_OBTAINED_VIA_GET_PAGE_ACCESS_TOKEN' && $pageId !== 'YOUR_PAGE_ID') {
+// if ($pageAccessToken !== 'YOUR_PAGE_ACCESS_TOKEN_OBTAINED_VIA_GET_PAGE_ACCESS_TOKEN_HERE' && $pageId !== 'YOUR_PAGE_ID_HERE') {
 //    $pageInfo = getPageInfo($pageAccessToken, $pageId);
 //    echo "\nPage Info:\n"; print_r($pageInfo); echo "\n";
 // } else { echo "Skipping getPageInfo: pageAccessToken or pageId is a placeholder.\n"; }
 
 // // Example: Post to Page (using Page Access Token)
-// if ($pageAccessToken !== 'PAGE_ACCESS_TOKEN_OBTAINED_VIA_GET_PAGE_ACCESS_TOKEN' && $pageId !== 'YOUR_PAGE_ID') {
+// if ($pageAccessToken !== 'YOUR_PAGE_ACCESS_TOKEN_OBTAINED_VIA_GET_PAGE_ACCESS_TOKEN_HERE' && $pageId !== 'YOUR_PAGE_ID_HERE') {
 //    $postedMessage = postToPage($pageAccessToken, $pageId, "Hello from my PHP script! Timestamp: " . time(), "https://developers.facebook.com");
 //    echo "\nPosted to Page:\n"; print_r($postedMessage); echo "\n";
 // } else { echo "Skipping postToPage: pageAccessToken or pageId is a placeholder.\n"; }
 
 // // Example: Send a Messenger Text Message (using Page Access Token)
-// $recipientPsid = 'USER_PSID_WHO_MESSAGED_YOUR_PAGE'; // Obtain this from a webhook event when a user messages your page
-// if ($pageAccessToken !== 'PAGE_ACCESS_TOKEN_OBTAINED_VIA_GET_PAGE_ACCESS_TOKEN' && $recipientPsid !== 'USER_PSID_WHO_MESSAGED_YOUR_PAGE') { 
+// $recipientPsid = 'USER_PSID_WHO_MESSAGED_YOUR_PAGE_HERE'; // Placeholder: Obtain this from a webhook event when a user messages your page
+// if ($pageAccessToken !== 'YOUR_PAGE_ACCESS_TOKEN_OBTAINED_VIA_GET_PAGE_ACCESS_TOKEN_HERE' && $recipientPsid !== 'USER_PSID_WHO_MESSAGED_YOUR_PAGE_HERE') { 
 //    $sentStatus = sendTextMessage($pageAccessToken, $recipientPsid, "Hello from the API!");
 //    echo "\nMessenger Send Status:\n"; print_r($sentStatus); echo "\n";
 // } else {
 //    echo "Skipping Messenger send: pageAccessToken or recipientPsid is a placeholder.\n";
 // }
 
+// // Example: Send a WhatsApp Text Message
+// $recipientWabId = 'RECIPIENT_PHONE_NUMBER_FOR_WHATSAPP_HERE'; // Placeholder
+// if ($whatsAppSystemUserToken !== 'YOUR_WHATSAPP_SYSTEM_USER_TOKEN_HERE' && $whatsAppPhoneNumberId !== 'YOUR_WHATSAPP_PHONE_NUMBER_ID_HERE' && $recipientWabId !== 'RECIPIENT_PHONE_NUMBER_FOR_WHATSAPP_HERE') {
+//     $waSentStatus = sendWhatsAppTextMessage($whatsAppSystemUserToken, $whatsAppPhoneNumberId, $recipientWabId, "Hello from WhatsApp via API!");
+//     echo "\nWhatsApp Send Status:\n"; print_r($waSentStatus); echo "\n";
+// } else {
+//     echo "Skipping WhatsApp send: WhatsApp tokens or recipient ID is a placeholder.\n";
+// }
+
+
 // // Example: Get Instagram User Media (using User Access Token with Instagram permissions)
-// if ($userAccessToken !== 'USER_ACCESS_TOKEN_OBTAINED_VIA_OAUTH' && $instagramAccountId !== 'YOUR_INSTAGRAM_BUSINESS_ACCOUNT_ID') {
+// if ($userAccessToken !== 'YOUR_USER_ACCESS_TOKEN_OBTAINED_VIA_OAUTH_HERE' && $instagramAccountId !== 'YOUR_INSTAGRAM_BUSINESS_ACCOUNT_ID_HERE') {
 //    $instagramMedia = getInstagramUserMedia($userAccessToken, $instagramAccountId);
 //    echo "\nInstagram Media:\n"; print_r($instagramMedia); echo "\n";
 // } else { echo "Skipping getInstagramUserMedia: userAccessToken or instagramAccountId is a placeholder.\n"; }
 
 // // Example: Create Ad Campaign (using User Access Token with Ads permissions)
-// if ($userAccessToken !== 'USER_ACCESS_TOKEN_OBTAINED_VIA_OAUTH' && $adAccountId !== 'act_YOUR_AD_ACCOUNT_ID') {
+// if ($userAccessToken !== 'YOUR_USER_ACCESS_TOKEN_OBTAINED_VIA_OAUTH_HERE' && $adAccountId !== 'act_YOUR_AD_ACCOUNT_ID_HERE') {
 //    $campaignData = createAdCampaign($userAccessToken, $adAccountId, 'My API Test Campaign - ' . time(), 'LINK_CLICKS', 'PAUSED');
 //    echo "\nCreated Ad Campaign:\n"; print_r($campaignData); echo "\n";
 // } else { echo "Skipping createAdCampaign: userAccessToken or adAccountId is a placeholder.\n"; }
 
 
 // // Example: Get Page Insights (using Page Access Token)
-// if ($pageAccessToken !== 'PAGE_ACCESS_TOKEN_OBTAINED_VIA_GET_PAGE_ACCESS_TOKEN' && $pageId !== 'YOUR_PAGE_ID') {
+// if ($pageAccessToken !== 'YOUR_PAGE_ACCESS_TOKEN_OBTAINED_VIA_GET_PAGE_ACCESS_TOKEN_HERE' && $pageId !== 'YOUR_PAGE_ID_HERE') {
 //    $insights = getPageInsights($pageAccessToken, $pageId, ['page_impressions', 'page_engaged_users'], 'days_28');
 //    echo "\nPage Insights:\n"; print_r($insights); echo "\n";
 // } else { echo "Skipping getPageInsights: pageAccessToken or pageId is a placeholder.\n"; }

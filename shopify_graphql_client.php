@@ -2690,4 +2690,339 @@ function exportAllOrders(
 // echo "---\n";
 */
 
+/**
+ * Calculates the Cartesian product of multiple arrays.
+ * Helper function for generating variant combinations.
+ *
+ * @param array<array<string|int|float>> $arrays An array of arrays, where each inner array contains option values.
+ * @return array<array<string|int|float>> An array of arrays, where each inner array is a combination of option values.
+ */
+function _shopify_calculate_cartesian_product(array $arrays): array
+{
+    if (empty($arrays)) {
+        return [[]];
+    }
+
+    $result = [[]];
+    foreach ($arrays as $key => $values) {
+        if (empty($values)) { // If any option set is empty, the cartesian product is empty.
+            return [];
+        }
+        $append = [];
+        foreach ($result as $product) {
+            foreach ($values as $item) {
+                $product[$key] = $item; // Use key to maintain order of options
+                $append[] = $product;
+            }
+        }
+        $result = $append;
+    }
+
+    // Ensure the option order in combinations matches the input option order
+    // This is implicitly handled by iterating through $arrays with its original keys
+    // and assigning to $product[$key].
+    return $result;
+}
+
+/**
+ * Creates a new product with multiple options and automatically generated variants.
+ *
+ * @param string $shopifyUrl The Shopify store URL.
+ * @param string $accessToken The Admin API access token.
+ * @param string $apiVersion The API version.
+ * @param string $title Product title.
+ * @param string $bodyHtml Product description (HTML).
+ * @param string $vendor Product vendor.
+ * @param array<string, array<string>> $optionsInput Associative array where keys are option names (e.g., "Size")
+ *                                                 and values are arrays of option values (e.g., ["Small", "Medium"]). Max 3 options.
+ * @param ?array<string, array<string, mixed>> $variantOverrides Optional. Associative array to override default variant properties.
+ *                                           Keys are combination strings (e.g., "Small / Red").
+ *                                           Values are arrays with keys like 'price', 'sku', 'inventoryPolicy', 'inventoryQuantities'.
+ * @param string $status Product status (DRAFT, ACTIVE, ARCHIVED). Defaults to 'DRAFT'.
+ * @param string $defaultPrice Default price for variants if not overridden.
+ * @param string $defaultSkuPrefix Default SKU prefix for auto-generated SKUs.
+ * @return array<string, mixed> Result from sendShopifyGraphQLRequest, containing product data or userErrors.
+ *
+ * @example
+ * // $options = [
+ * //     'Size' => ['Small', 'Medium', 'Large'],
+ * //     'Color' => ['Red', 'Blue']
+ * // ];
+ * // $overrides = [
+ * //     'Small / Red' => ['price' => '25.00', 'sku' => 'TS-SM-RD', 'inventoryQuantities' => [['availableQuantity' => 10, 'locationId' => 'gid://shopify/Location/YOUR_LOCATION_ID']]],
+ * //     'Large / Blue' => ['price' => '30.00', 'inventoryPolicy' => 'CONTINUE']
+ * // ];
+ * // $result = createProductWithOptionsAndVariants(
+ * //     $shopifyStoreUrl, $shopifyAccessToken, $apiVersion,
+ * //     'Awesome T-Shirt with Options', '<p>Super comfy!</p>', 'My Brand',
+ * //     $options, $overrides, 'ACTIVE', '22.50', 'TSHIRT'
+ * // );
+ * // if ($result['status'] === 'success' && isset($result['data']['productCreate']['product'])) {
+ * //   // echo "Product created successfully: " . $result['data']['productCreate']['product']['id'] . "
+";
+ * //   // print_r($result['data']['productCreate']['product']['variants']);
+ * // } else {
+ * //   // echo "Error: " . ($result['message'] ?? 'Unknown error') . "
+";
+ * //   // if(isset($result['details'])) print_r($result['details']);
+ * // }
+ */
+function createProductWithOptionsAndVariants(
+    string $shopifyUrl,
+    string $accessToken,
+    string $apiVersion,
+    string $title,
+    string $bodyHtml,
+    string $vendor,
+    array $optionsInput,
+    ?array $variantOverrides = null,
+    string $status = 'DRAFT',
+    string $defaultPrice = '10.00',
+    string $defaultSkuPrefix = 'SKU'
+): array {
+    $optionCount = count($optionsInput);
+    if ($optionCount < 1 || $optionCount > 3) {
+        return ['status' => 'error', 'message' => 'Product must have 1 to 3 options.'];
+    }
+
+    $optionNames = array_keys($optionsInput);
+    $optionValueArrays = [];
+    foreach ($optionsInput as $name => $values) {
+        if (empty($values)) {
+            return ['status' => 'error', 'message' => "Option '{$name}' must have at least one value."];
+        }
+        $optionValueArrays[] = $values;
+    }
+
+    $variantCombinations = _shopify_calculate_cartesian_product($optionValueArrays);
+
+    if (empty($variantCombinations) && $optionCount > 0) {
+         return ['status' => 'error', 'message' => 'No variant combinations could be generated from the provided options. Ensure option value arrays are not empty.'];
+    }
+
+
+    $variantsInput = [];
+    foreach ($variantCombinations as $combination) {
+        $variantInput = ['options' => $combination];
+        $overrideKey = implode(' / ', $combination);
+
+        $overrideData = $variantOverrides[$overrideKey] ?? [];
+
+        $variantInput['price'] = $overrideData['price'] ?? $defaultPrice;
+        
+        $skuValueParts = array_map(fn($val) => preg_replace('/[^a-zA-Z0-9]+/', '-', (string)$val), $combination);
+        $variantInput['sku'] = $overrideData['sku'] ?? strtoupper($defaultSkuPrefix . '-' . implode('-', $skuValueParts));
+        
+        $variantInput['inventoryPolicy'] = $overrideData['inventoryPolicy'] ?? 'DENY'; // DENY or CONTINUE
+
+        if (isset($overrideData['inventoryQuantities'])) {
+            $variantInput['inventoryQuantities'] = $overrideData['inventoryQuantities'];
+        } elseif (isset($overrideData['availableQuantity']) && isset($overrideData['locationId'])) {
+            // Simplified override for single location quantity
+            $variantInput['inventoryQuantities'] = [
+                ['availableQuantity' => (int)$overrideData['availableQuantity'], 'locationId' => (string)$overrideData['locationId']]
+            ];
+        }
+
+
+        $variantsInput[] = $variantInput;
+    }
+
+    $productInputForMutation = [
+        'title' => $title,
+        'bodyHtml' => $bodyHtml,
+        'vendor' => $vendor,
+        'status' => $status,
+        'options' => $optionNames,
+        'variants' => $variantsInput,
+    ];
+
+    $mutation = <<<GRAPHQL
+    mutation productCreate(\$input: ProductInput!) {
+      productCreate(input: \$input) {
+        product {
+          id
+          title
+          handle
+          status
+          options {
+            name
+            values
+          }
+          variants(first: 250) { # Fetch up to 250 variants
+            edges {
+              node {
+                id
+                title
+                sku
+                price
+                availableForSale
+                inventoryQuantity
+                selectedOptions {
+                  name
+                  value
+                }
+              }
+            }
+          }
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+    GRAPHQL;
+
+    return sendShopifyGraphQLRequest($shopifyUrl, $accessToken, $apiVersion, $mutation, ['input' => $productInputForMutation]);
+}
+/*
+// --- DEMO USAGE for createProductWithOptionsAndVariants ---
+// Note: Replace placeholder values. Assumes $shopifyStoreUrl, $shopifyAccessToken, $apiVersion are defined globally.
+// You'll need a valid $exampleLocationGid if using inventoryQuantities.
+
+// // Example 1: Product with Size and Color options
+// $optionsInput1 = [
+//     'Size' => ['Small', 'Medium'],
+//     'Color' => ['Black', 'White']
+// ];
+// $variantOverrides1 = [
+//     'Small / Black' => ['price' => '25.00', 'sku' => 'SB001'],
+//     'Medium / White' => ['price' => '27.00', 'sku' => 'MW001']
+// ];
+// $result1 = createProductWithOptionsAndVariants(
+//     $shopifyStoreUrl,
+//     $shopifyAccessToken,
+//     $apiVersion,
+//     'Demo T-Shirt - ' . date('Y-m-d H:i:s'),
+//     '<p>Comfortable demo t-shirt with options.</p>',
+//     'Demo Brand',
+//     $optionsInput1,
+//     $variantOverrides1,
+//     'ACTIVE', // status
+//     '22.00',  // defaultPrice
+//     'DEMO-TS' // defaultSkuPrefix
+// );
+
+// echo "Result for Product with 2 Options:
+";
+// if (isset($result1['status'])) {
+//   if ($result1['status'] === 'success') {
+//     echo "createProductWithOptionsAndVariants SUCCESS:
+";
+//     // print_r($result1['data']); // Uncomment for full data
+//     if(isset($result1['data']['productCreate']['product']['id'])) {
+//        echo "Created Product ID: " . $result1['data']['productCreate']['product']['id'] . "
+";
+//     } else if (!empty($result1['data']['productCreate']['userErrors'])) {
+//        echo "User Errors: 
+";
+//        // print_r($result1['data']['productCreate']['userErrors']);
+//     }
+//   } else {
+//     echo "createProductWithOptionsAndVariants ERROR: " . $result1['message'] . "
+";
+//     // if (!empty($result1['details'])) print_r($result1['details']);
+//   }
+// } else {
+//   echo "createProductWithOptionsAndVariants UNEXPECTED RESPONSE:
+";
+//   // print_r($result1);
+// }
+// echo "---\n";
+
+// // Example 2: Product with only Size option
+// $optionsInput2 = ['Size' => ['Large', 'X-Large']];
+// $result2 = createProductWithOptionsAndVariants(
+//     $shopifyStoreUrl,
+//     $shopifyAccessToken,
+//     $apiVersion,
+//     'Demo Hoodie - Size Only - ' . date('Y-m-d H:i:s'),
+//     '<p>Warm demo hoodie.</p>',
+//     'Demo Brand',
+//     $optionsInput2,
+//     null, // No specific overrides
+//     'DRAFT'
+// );
+// echo "Result for Product with 1 Option:
+";
+// if (isset($result2['status'])) {
+//   if ($result2['status'] === 'success') {
+//     echo "createProductWithOptionsAndVariants SUCCESS:
+";
+//     if(isset($result2['data']['productCreate']['product']['id'])) {
+//        echo "Created Product ID: " . $result2['data']['productCreate']['product']['id'] . "
+";
+//     } else if (!empty($result2['data']['productCreate']['userErrors'])) {
+//        echo "User Errors: 
+";
+//        // print_r($result2['data']['productCreate']['userErrors']);
+//     }
+//   } else {
+//     echo "createProductWithOptionsAndVariants ERROR: " . $result2['message'] . "
+";
+//   }
+// } else {
+//   echo "createProductWithOptionsAndVariants UNEXPECTED RESPONSE:
+";
+//   // print_r($result2);
+// }
+// echo "---\n";
+
+// // Example 3: Product with Size, Color, and Material options
+// // IMPORTANT: Replace 'gid://shopify/Location/0123456789' with a *REAL* Location GID from your store if testing inventory.
+// $exampleLocationGid = 'gid://shopify/Location/0123456789'; // !!! REPLACE THIS with a valid Location GID !!!
+
+// $optionsInput3 = [
+//     'Size' => ['Small', 'Medium'],
+//     'Color' => ['Blue'],
+//     'Material' => ['Cotton', 'Organic Cotton']
+// ];
+// $variantOverrides3 = [
+//     'Small / Blue / Organic Cotton' => [
+//         'price' => '35.00', 
+//         'sku' => 'SBOC001', 
+//         'inventoryPolicy' => 'DENY', // Or 'CONTINUE'
+//         'inventoryQuantities' => [['availableQuantity' => 5, 'locationId' => $exampleLocationGid]]
+//     ]
+// ];
+// $result3 = createProductWithOptionsAndVariants(
+//     $shopifyStoreUrl,
+//     $shopifyAccessToken,
+//     $apiVersion,
+//     'Demo Premium Tee - ' . date('Y-m-d H:i:s'),
+//     '<p>Premium demo tee with three options.</p>',
+//     'Premium Demo',
+//     $optionsInput3,
+//     $variantOverrides3,
+//     'ACTIVE'
+// );
+// echo "Result for Product with 3 Options:
+";
+// if (isset($result3['status'])) {
+//   if ($result3['status'] === 'success') {
+//     echo "createProductWithOptionsAndVariants SUCCESS:
+";
+//     if(isset($result3['data']['productCreate']['product']['id'])) {
+//        echo "Created Product ID: " . $result3['data']['productCreate']['product']['id'] . "
+";
+//     } else if (!empty($result3['data']['productCreate']['userErrors'])) {
+//        echo "User Errors: 
+";
+//        // print_r($result3['data']['productCreate']['userErrors']);
+//     }
+//   } else {
+//     echo "createProductWithOptionsAndVariants ERROR: " . $result3['message'] . "
+";
+//   }
+// } else {
+//   echo "createProductWithOptionsAndVariants UNEXPECTED RESPONSE:
+";
+//   // print_r($result3);
+// }
+// echo "---\n";
+*/
+
 ?>
+
+[end of shopify_graphql_client.php]
